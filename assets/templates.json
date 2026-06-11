@@ -1,0 +1,303 @@
+{
+  "$schema_note": "WORDBANK sentence templates (agent 2 content deliverable; BountyEngine stores them onchain \u2014 admin loads via agent 4's surface). Encoding: sentence = fragments[0] + word(slots[0]) + fragments[1] + word(slots[1]) + ... + fragments[n]. INVARIANTS: fragments.length == slots.length + 1; slots.length <= 7 (normative cap); categories are Types.sol enum names. GRAMMAR RULE: word lists store base forms (singular nouns, infinitive verbs), so every VERB slot follows a modal/auxiliary ('will', 'can', 'must', 'should', 'would'), an imperative opening, 'to', or a plural/compound subject \u2014 never a bare third-person-singular position.",
+  "version": 1,
+  "maxSlots": 7,
+  "templates": [
+    {
+      "id": 0,
+      "slots": [
+        "ADJ",
+        "NOUN",
+        "VERB"
+      ],
+      "fragments": [
+        "The ",
+        " ",
+        " will ",
+        "."
+      ]
+    },
+    {
+      "id": 1,
+      "slots": [
+        "NOUN",
+        "VERB",
+        "ADV"
+      ],
+      "fragments": [
+        "Each ",
+        " must ",
+        " ",
+        "."
+      ]
+    },
+    {
+      "id": 2,
+      "slots": [
+        "NOUN",
+        "NOUN",
+        "VERB",
+        "ADV"
+      ],
+      "fragments": [
+        "The ",
+        " and the ",
+        " ",
+        " ",
+        "."
+      ]
+    },
+    {
+      "id": 3,
+      "slots": [
+        "VERB",
+        "ADJ",
+        "NOUN"
+      ],
+      "fragments": [
+        "Never ",
+        " that ",
+        " ",
+        "."
+      ]
+    },
+    {
+      "id": 4,
+      "slots": [
+        "ADJ",
+        "NOUN",
+        "VERB",
+        "ADJ",
+        "NOUN"
+      ],
+      "fragments": [
+        "The ",
+        " ",
+        " will ",
+        " the ",
+        " ",
+        "."
+      ]
+    },
+    {
+      "id": 5,
+      "slots": [
+        "ADV",
+        "NOUN",
+        "VERB"
+      ],
+      "fragments": [
+        "",
+        ", the ",
+        " can ",
+        "."
+      ]
+    },
+    {
+      "id": 6,
+      "slots": [
+        "VERB",
+        "VERB",
+        "ADJ",
+        "NOUN"
+      ],
+      "fragments": [
+        "To ",
+        " is to ",
+        ", said the ",
+        " ",
+        "."
+      ]
+    },
+    {
+      "id": 7,
+      "slots": [
+        "NOUN",
+        "NOUN",
+        "VERB",
+        "ADV"
+      ],
+      "fragments": [
+        "The ",
+        " of ",
+        " will ",
+        " ",
+        "."
+      ]
+    },
+    {
+      "id": 8,
+      "slots": [
+        "ADJ",
+        "NOUN",
+        "VERB",
+        "ADJ",
+        "NOUN",
+        "ADV"
+      ],
+      "fragments": [
+        "One ",
+        " ",
+        " can ",
+        " one ",
+        " ",
+        " ",
+        "."
+      ]
+    },
+    {
+      "id": 9,
+      "slots": [
+        "VERB",
+        "NOUN",
+        "VERB",
+        "NOUN"
+      ],
+      "fragments": [
+        "",
+        " the ",
+        ", then ",
+        " the ",
+        "."
+      ]
+    },
+    {
+      "id": 10,
+      "slots": [
+        "NOUN",
+        "VERB",
+        "ADJ",
+        "NOUN",
+        "VERB"
+      ],
+      "fragments": [
+        "Every ",
+        " should ",
+        " before the ",
+        " ",
+        " can ",
+        "."
+      ]
+    },
+    {
+      "id": 11,
+      "slots": [
+        "ADJ",
+        "ADJ",
+        "NOUN",
+        "ADV",
+        "VERB"
+      ],
+      "fragments": [
+        "The ",
+        ", ",
+        " ",
+        " would ",
+        " ",
+        "."
+      ]
+    },
+    {
+      "id": 12,
+      "slots": [
+        "NOUN",
+        "VERB"
+      ],
+      "fragments": [
+        "Let the ",
+        " ",
+        "."
+      ]
+    },
+    {
+      "id": 13,
+      "slots": [
+        "ADJ",
+        "NOUN",
+        "VERB",
+        "NOUN",
+        "ADV"
+      ],
+      "fragments": [
+        "Why would the ",
+        " ",
+        " ",
+        " the ",
+        " so ",
+        "?"
+      ]
+    },
+    {
+      "id": 14,
+      "slots": [
+        "NOUN",
+        "VERB",
+        "NOUN",
+        "VERB",
+        "ADV"
+      ],
+      "fragments": [
+        "The ",
+        " will ",
+        " and the ",
+        " will ",
+        ", ",
+        "."
+      ]
+    },
+    {
+      "id": 15,
+      "slots": [
+        "ADJ",
+        "NOUN",
+        "ADJ",
+        "NOUN",
+        "VERB",
+        "ADV",
+        "NOUN"
+      ],
+      "fragments": [
+        "When the ",
+        " ",
+        " and the ",
+        " ",
+        " ",
+        " ",
+        ", every ",
+        " must listen."
+      ]
+    },
+    {
+      "id": 16,
+      "slots": [
+        "NOUN",
+        "VERB",
+        "NOUN",
+        "VERB"
+      ],
+      "fragments": [
+        "No ",
+        " can ",
+        " the ",
+        " that will not ",
+        "."
+      ]
+    },
+    {
+      "id": 17,
+      "slots": [
+        "ADV",
+        "ADV",
+        "NOUN",
+        "VERB"
+      ],
+      "fragments": [
+        "",
+        " and ",
+        ", the ",
+        " will ",
+        "."
+      ]
+    }
+  ]
+}

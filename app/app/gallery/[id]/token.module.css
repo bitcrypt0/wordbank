@@ -1,0 +1,185 @@
+.crumbs {
+  padding-block: var(--space-5) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink-faint);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
+  gap: var(--space-7);
+  align-items: start;
+  padding-block: var(--space-2) var(--space-7);
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.plate {
+  margin: 0;
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-2);
+  overflow: hidden;
+  box-shadow: var(--shadow-plate);
+}
+
+.facts {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+
+.id {
+  color: var(--ink-faint);
+  font-size: var(--text-sm);
+}
+
+.word {
+  font-size: var(--text-3xl);
+  font-weight: 640;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.badges {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cat {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.traits {
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+  border-top: 1px solid var(--paper-edge);
+  padding-top: var(--space-4);
+}
+
+.trait {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.traitValue {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-weight: 500;
+}
+
+.swatch {
+  width: 0.9em;
+  height: 0.9em;
+  border-radius: 3px;
+  border: 1px solid rgba(27, 27, 34, 0.25);
+  flex: none;
+}
+
+.rarityNote {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  border-left: 2px solid var(--paper-edge);
+  padding-left: var(--space-3);
+}
+
+.actions {
+  display: flex;
+  /* flex-start (not the default stretch) so the Unbind <a> never stretches to
+     match the Claim column's height when its disabled-hint text appears below
+     it — both buttons stay the same intrinsic .btn size at all times. */
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding-top: var(--space-2);
+}
+
+/* ── due diligence ── */
+
+.dd {
+  padding: var(--space-6);
+  margin-bottom: var(--space-8);
+  display: grid;
+  gap: var(--space-5);
+}
+
+.ddHead {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 44rem;
+}
+
+.ddTitle {
+  font-size: var(--text-xl);
+}
+
+.ddLede {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.ddGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+}
+
+@media (max-width: 860px) {
+  .ddGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ddItem {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.ddMark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin-top: 0.15em;
+}
+
+.ddItemTitle {
+  font-weight: 620;
+}
+
+.ddItemValue {
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  margin-block: 0.15em 0.3em;
+}
+
+.ddItemNote {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
+
+.ddVerify {
+  border-top: 1px solid var(--paper-edge);
+  padding-top: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}

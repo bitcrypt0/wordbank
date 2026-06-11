@@ -1,0 +1,142 @@
+.shell {
+  display: block;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.55em 1.1em;
+  border: 1.5px solid var(--crimson);
+  border-radius: var(--radius-1);
+  background: transparent;
+  color: var(--crimson);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.trigger:hover {
+  background: rgba(142, 36, 52, 0.07);
+}
+
+.lockMark {
+  font-size: 0.95em;
+}
+
+.panel {
+  border: 1.5px solid var(--crimson);
+  border-radius: var(--radius-2);
+  background: rgba(142, 36, 52, 0.05);
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+  max-width: 36rem;
+}
+
+.warnTitle {
+  font-weight: 700;
+  color: var(--crimson);
+  font-size: var(--text-md);
+}
+
+.consequence {
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.check {
+  display: flex;
+  gap: 0.5em;
+  align-items: flex-start;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.typeLabel {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
+
+.typeInput {
+  font-size: var(--text-base);
+  padding: 0.4em 0.6em;
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-1);
+  background: var(--paper-raised);
+  max-width: 14rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.typeInput:focus-visible {
+  outline-color: var(--crimson);
+}
+
+.row {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.wiring {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+
+/* spent / done */
+.done {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-2);
+  background: var(--paper-deep);
+}
+
+.doneMark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6em;
+  height: 1.6em;
+  border-radius: 50%;
+  border: 1.5px solid var(--ok);
+  color: var(--ok);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  margin-top: 0.1em;
+}
+
+.doneTitle {
+  font-weight: 620;
+}
+
+.doneNote {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
+
+/* blocked */
+.blocked {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--paper-fleck);
+  border-radius: var(--radius-2);
+  color: var(--ink-faint);
+}
+
+.blockedTitle {
+  font-weight: 620;
+  color: var(--ink-soft);
+}
+
+.blockedNote {
+  font-size: var(--text-xs);
+}

@@ -1,0 +1,21 @@
+{
+  "_comment": "GENERATED/UPDATED by scripts/sync-addresses.ts from deploy/addresses/<network>.json. Null until a deployment exists; the dApp renders the designed 'pending deployment' state for null addresses. Do not hand-edit — run `npm run sync:addresses` after a deploy.",
+  "network": "mainnet",
+  "chainId": 1,
+  "contracts": {
+    "wordToken": "0x7c1061A9198571df11D26d48d4d3899F0Ab1831a",
+    "wordBank": "0x63a92C4E448847c906b7657C20630650e6bA1218",
+    "renderer": "0x49Ae7d42Ed9b5437D267983eb4Db2e3Bd70BBf0D",
+    "rewardsDistributor": "0x0c35B5bFd31Eb2Fb4922577e18Aa87a35d89098A",
+    "bountyEngine": "0x206014e1B004924e30c5135D7Ca1b0B77a5DE16F",
+    "burnEngine": "0x51F632045A7f2263c1D72e1Cbfdf7C7011EE0A14",
+    "feeHook": "0x84319955aa550DbeDaC99bB87dcBf5A48aC4C0CC",
+    "lpLocker": "0xC2f89604cAa03b8Aec65E783f3c6fbd939E3d810",
+    "royaltySplitter": "0xd960b862e6fB93F9188f13474D57a14571d81470"
+  },
+  "pool": {
+    "fee": 3000,
+    "tickSpacing": 60,
+    "weth": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+  }
+}

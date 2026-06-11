@@ -1,0 +1,117 @@
+WORDBANK — SENTENCE TEMPLATES (for the Bounty-menu upload)
+===========================================================
+
+WHAT A TEMPLATE IS
+------------------
+A template is NOT a finished sentence and you do NOT supply real words. You supply
+the SKELETON of a sentence:
+
+  • slots      — the part-of-speech of each blank, in order (NOUN, VERB, ADJ, ADV).
+                 At reveal, the game draws a random LIVING word of each category.
+  • fragments  — the fixed "glue" text printed AROUND the blanks (words like "The",
+                 connectors like " and the ", and punctuation like ".").
+
+The chain renders the sentence as:
+  fragments[0] + word(slots[0]) + fragments[1] + word(slots[1]) + ... + fragments[n]
+
+So a template with N slots needs EXACTLY N+1 fragments (one before each blank and one
+after the last). Spaces inside fragments are real and matter — they are what put the
+spaces between the words.
+
+  Example — slots: ADJ, NOUN, VERB   fragments: "The " | " " | " will " | "."
+  renders:  "The " + <adj> + " " + <noun> + " will " + <verb> + "."
+         →  "The luminous ember will wander."
+
+You provide the structure once; the chain fills in different living words every day.
+
+THE ONE GRAMMAR RULE (important)
+--------------------------------
+The word lists store BASE forms — singular nouns, infinitive verbs (no "-s"/"-ed").
+So a VERB blank must never sit in a bare third-person spot ("The cat run." is wrong).
+Put every VERB after one of:
+  • a modal/auxiliary:  will / can / must / should / would
+  • "to" (infinitive):  "To <verb> is to <verb>…"
+  • an imperative open:  "Never <verb>…", "<verb> the <noun>…"
+  • a plural/compound subject:  "The <noun> and the <noun> <verb>…"
+All templates below already follow this rule — copy the pattern when you add your own.
+
+HOW TO UPLOAD (admin dashboard → "Bounty menus" → Add template)
+---------------------------------------------------------------
+  • Slots field:     comma-separated, e.g.   ADJ, NOUN, VERB
+  • Fragments field: separated by a pipe "|", e.g.   The | | will |.
+                     (the spaces shown in the quoted "fragments" below ARE the content —
+                      type them; the pipe is just the divider, with no extra spaces of its own)
+Limits: up to 7 slots per template, up to 32 templates total.
+
+The full curated set (18 templates) lives in assets/templates.json — load all of them
+in one click via the admin "Bulk import" panel. The 12 below are a readable starter and
+a manual-entry reference; the JSON is the easier path for uploading the whole set.
+
+===========================================================
+TEMPLATES
+===========================================================
+
+#1   slots:      ADJ, NOUN, VERB
+     fragments:  "The " | " " | " will " | "."
+     renders:    The <adj> <noun> will <verb>.
+     example:    The luminous ember will wander.
+
+#2   slots:      NOUN, VERB, ADV
+     fragments:  "Each " | " must " | " " | "."
+     renders:    Each <noun> must <verb> <adv>.
+     example:    Each satoshi must pump quietly.
+
+#3   slots:      NOUN, NOUN, VERB, ADV
+     fragments:  "The " | " and the " | " " | " " | "."
+     renders:    The <noun> and the <noun> <verb> <adv>.
+     example:    The ember and the moon drift slowly.
+
+#4   slots:      VERB, ADJ, NOUN
+     fragments:  "Never " | " that " | " " | "."
+     renders:    Never <verb> that <adj> <noun>.
+     example:    Never trust that golden rug.
+
+#5   slots:      ADJ, NOUN, VERB, ADJ, NOUN
+     fragments:  "The " | " " | " will " | " the " | " " | "."
+     renders:    The <adj> <noun> will <verb> the <adj> <noun>.
+     example:    The luminous ember will swap the golden token.
+
+#6   slots:      ADV, NOUN, VERB
+     fragments:  "" | ", the " | " can " | "."
+     renders:    <adv>, the <noun> can <verb>.
+     example:    Quietly, the satoshi can moon.
+
+#7   slots:      VERB, VERB, ADJ, NOUN
+     fragments:  "To " | " is to " | ", said the " | " " | "."
+     renders:    To <verb> is to <verb>, said the <adj> <noun>.
+     example:    To stake is to farm, said the golden dev.
+
+#8   slots:      NOUN, NOUN, VERB, ADV
+     fragments:  "The " | " of " | " will " | " " | "."
+     renders:    The <noun> of <noun> will <verb> <adv>.
+     example:    The floor of yield will pump softly.
+
+#9   slots:      ADJ, NOUN, VERB, ADJ, NOUN, ADV
+     fragments:  "One " | " " | " can " | " one " | " " | " " | "."
+     renders:    One <adj> <noun> can <verb> one <adj> <noun> <adv>.
+     example:    One luminous ember can swap one golden token quietly.
+
+#10  slots:      VERB, NOUN, VERB, NOUN
+     fragments:  "" | " the " | ", then " | " the " | "."
+     renders:    <verb> the <noun>, then <verb> the <noun>.
+     example:    Mint the token, then dump the floor.
+
+#11  slots:      NOUN, VERB, ADJ, NOUN, VERB
+     fragments:  "Every " | " should " | " before the " | " " | " can " | "."
+     renders:    Every <noun> should <verb> before the <adj> <noun> can <verb>.
+     example:    Every degen should stake before the golden floor can dump.
+
+#12  slots:      ADJ, ADJ, NOUN, ADV, VERB
+     fragments:  "The " | ", " | " " | " would " | " " | "."
+     renders:    The <adj>, <adj> <noun> <adv> would <verb>.
+     example:    The luminous, golden ember slowly would wander.
+
+===========================================================
+Reminder: fragments count = slots count + 1. Empty fragments ("") are allowed
+(see #6 and #10, which start with no leading text). Keep every VERB after a
+modal / "to" / imperative / plural per the grammar rule above.

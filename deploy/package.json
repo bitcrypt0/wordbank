@@ -1,0 +1,32 @@
+{
+  "name": "wordbank-deploy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WORDBANK deployment orchestration (Hardhat consumes Foundry out/ artifacts; Foundry is the compiler of record)",
+  "scripts": {
+    "deploy:protocol": "hardhat run scripts/01-deploy-protocol.ts",
+    "upload:renderer": "hardhat run scripts/01b-upload-renderer.ts",
+    "upload:slots": "hardhat run scripts/01c-upload-slots.ts",
+    "verify:content": "hardhat run scripts/verify-content.ts",
+    "seed-and-launch": "hardhat run scripts/02-seed-and-launch.ts",
+    "sync-registry": "hardhat run scripts/02b-sync-registry.ts",
+    "lock-liquidity": "hardhat run scripts/04-lock-liquidity.ts",
+    "enable-trading": "hardhat run scripts/05-enable-trading.ts",
+    "seal-and-renounce": "hardhat run scripts/03-seal-and-renounce.ts",
+    "verify-commands": "ts-node scripts/verify-commands.ts --print",
+    "verify:mainnet": "ts-node scripts/verify-commands.ts --network mainnet",
+    "verify:sepolia": "ts-node scripts/verify-commands.ts --network sepolia",
+    "test:normalize": "ts-node scripts/normalize.test.ts",
+    "test:verify": "ts-node scripts/verify.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "@types/node": "^22.10.0",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.4",
+    "hardhat": "^2.22.17",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}

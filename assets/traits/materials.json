@@ -1,0 +1,1324 @@
+{
+  "$schema_note": "Source of truth for the Renderer's material fragments and constraint tables. 'fragment' is a single-line SVG <g> using ONLY single-quoted attributes (so it embeds in generated Solidity). 'surface' is the dominant writing-surface color used by tools/validate_traits.py for ink contrast checks. 'bias' on backgrounds is OFFCHAIN documentation consumed by the trait-assignment tool (POS palette bias = color selection only, never odds); it is not stored onchain. Indices are positional: WordData.ink / WordData.background index these arrays. Material order = onchain material index; tiers 0..4 = Common..Legendary.",
+  "tiers": [
+    "Common",
+    "Uncommon",
+    "Rare",
+    "Epic",
+    "Legendary"
+  ],
+  "materials": [
+    {
+      "name": "Paper",
+      "tier": 0,
+      "fragment": "<g><filter id='m0s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='12' stdDeviation='16' flood-color='#1a140c' flood-opacity='0.3'/></filter><path d='M134 152 Q500 140 866 148 L872 850 Q500 866 128 856 Z' fill='#f6f1e4' filter='url(#m0s)'/><path d='M134 152 Q500 140 866 148 L872 850 Q500 866 128 856 Z' fill='none' stroke='#e2d9c2' stroke-width='2.5'/><path d='M818 151 L866 148 L871 202 Z' fill='#eae2cc'/><path d='M818 151 L871 202 L814 198 Z' fill='#f0e9d6'/><g fill='#d8cdb0' opacity='0.5'><circle cx='243' cy='306' r='2.8'/><circle cx='708' cy='676' r='2.4'/><circle cx='561' cy='252' r='1.9'/><circle cx='352' cy='718' r='2.5'/><circle cx='788' cy='424' r='1.8'/><circle cx='205' cy='585' r='2.1'/></g></g>",
+      "surface": "#f6f1e4",
+      "inks": [
+        {
+          "name": "Graphite",
+          "color": "#3a3a40"
+        },
+        {
+          "name": "India Ink",
+          "color": "#1b1b22"
+        },
+        {
+          "name": "Sepia",
+          "color": "#6b4a2b"
+        },
+        {
+          "name": "Crimson",
+          "color": "#8e2434"
+        },
+        {
+          "name": "Indigo",
+          "color": "#2c3a64"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Umber",
+          "color": "#6d5743",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Olive Field",
+          "color": "#5c6247",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Persimmon",
+          "color": "#c2552e",
+          "bias": "VERB"
+        },
+        {
+          "name": "Teal Surge",
+          "color": "#1f6f6b",
+          "bias": "VERB"
+        },
+        {
+          "name": "Rose Quartz",
+          "color": "#dcb8af",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Powder Blue",
+          "color": "#aec4d4",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Slate Mist",
+          "color": "#7e8794",
+          "bias": "ADV"
+        },
+        {
+          "name": "Dove Gray",
+          "color": "#aaa79d",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 700
+    },
+    {
+      "name": "Cardboard",
+      "tier": 0,
+      "fragment": "<g><filter id='m1s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='12' stdDeviation='14' flood-color='#140f08' flood-opacity='0.32'/></filter><path d='M130 162 L870 152 L876 846 L124 854 Z' fill='#9e7544' filter='url(#m1s)'/><path d='M130 162 L870 152 L876 846 L124 854 Z' fill='none' stroke='#7e5a33' stroke-width='3'/><path d='M138 184 H862' stroke='#8a6238' stroke-width='13' stroke-dasharray='9 9' opacity='0.42' stroke-linecap='round'/><path d='M138 828 H866' stroke='#8a6238' stroke-width='13' stroke-dasharray='9 9' opacity='0.42' stroke-linecap='round'/><rect x='402' y='118' width='196' height='74' fill='#ece6d4' opacity='0.5' transform='rotate(-4 500 155)'/><path d='M236 380 L262 520' stroke='#a37c4c' stroke-width='3' opacity='0.7'/><path d='M752 332 L728 470' stroke='#a37c4c' stroke-width='3' opacity='0.7'/></g>",
+      "surface": "#9e7544",
+      "inks": [
+        {
+          "name": "Marker Black",
+          "color": "#26211c"
+        },
+        {
+          "name": "Stencil White",
+          "color": "#f4efe6"
+        },
+        {
+          "name": "Deep Walnut",
+          "color": "#3f2d1d"
+        },
+        {
+          "name": "Postal Blue",
+          "color": "#19294a"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Loam",
+          "color": "#57473a",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Moss",
+          "color": "#4f5a40",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Flame",
+          "color": "#a83f1b",
+          "bias": "VERB"
+        },
+        {
+          "name": "Teal Crate",
+          "color": "#156a64",
+          "bias": "VERB"
+        },
+        {
+          "name": "Butter",
+          "color": "#e7d3a9",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Sky Wash",
+          "color": "#b9cdd9",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Charcoal Gray",
+          "color": "#4b4a46",
+          "bias": "ADV"
+        },
+        {
+          "name": "Storm",
+          "color": "#5d6672",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 700
+    },
+    {
+      "name": "Newsprint",
+      "tier": 0,
+      "fragment": "<g><filter id='m2s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='10' stdDeviation='12' flood-color='#16140f' flood-opacity='0.28'/></filter><path d='M128 142 L872 150 L866 858 L134 850 Z' fill='#ece9e2' filter='url(#m2s)'/><path d='M156 172 L844 178 L840 828 L162 822 Z' fill='none' stroke='#b9b5ac' stroke-width='2'/><path d='M168 232 H832' stroke='#56524a' stroke-width='3'/><path d='M168 246 H832' stroke='#b9b5ac' stroke-width='1.5'/><g stroke='#b9b5ac' stroke-width='6' opacity='0.85'><path d='M180 640 H472 M180 662 H472 M180 684 H448 M180 706 H472 M180 728 H460 M180 750 H472 M180 772 H432'/><path d='M528 640 H820 M528 662 H820 M528 684 H804 M528 706 H820 M528 728 H788 M528 750 H820 M528 772 H760'/></g><g stroke='#b9b5ac' stroke-width='6' opacity='0.85'><path d='M180 286 H472 M180 308 H452 M528 286 H820 M528 308 H796'/></g><circle cx='806' cy='200' r='9' fill='#56524a' opacity='0.18'/></g>",
+      "surface": "#ece9e2",
+      "inks": [
+        {
+          "name": "Press Black",
+          "color": "#1d1d1f"
+        },
+        {
+          "name": "Editorial Red",
+          "color": "#a3242a"
+        },
+        {
+          "name": "Union Blue",
+          "color": "#27416b"
+        },
+        {
+          "name": "Ink Wash",
+          "color": "#4a4a48"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Walnut Desk",
+          "color": "#5a4634",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Bottle Green",
+          "color": "#3c5242",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Signal Red",
+          "color": "#a32b22",
+          "bias": "VERB"
+        },
+        {
+          "name": "Cobalt",
+          "color": "#2c4f8c",
+          "bias": "VERB"
+        },
+        {
+          "name": "Blush",
+          "color": "#e3c4bc",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Mint",
+          "color": "#c3d8c6",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Iron",
+          "color": "#565b60",
+          "bias": "ADV"
+        },
+        {
+          "name": "Fog",
+          "color": "#aab0b3",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 650
+    },
+    {
+      "name": "Chalkboard",
+      "tier": 0,
+      "fragment": "<g><filter id='m3s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='10' stdDeviation='14' flood-color='#0c0a07' flood-opacity='0.4'/></filter><rect x='96' y='116' width='808' height='772' rx='12' fill='#5b4128' filter='url(#m3s)'/><rect x='96' y='116' width='808' height='772' rx='12' fill='none' stroke='#46311c' stroke-width='4'/><rect x='130' y='150' width='740' height='672' fill='#2c3833'/><g fill='#e8e6da'><ellipse cx='312' cy='742' rx='150' ry='34' opacity='0.06'/><ellipse cx='672' cy='270' rx='120' ry='26' opacity='0.045'/><ellipse cx='540' cy='760' rx='90' ry='20' opacity='0.05'/></g><rect x='340' y='826' width='320' height='22' rx='6' fill='#46311c'/><rect x='568' y='806' width='84' height='17' rx='8' fill='#efece0'/><rect x='380' y='808' width='56' height='15' rx='7' fill='#e2aab4'/></g>",
+      "surface": "#2c3833",
+      "inks": [
+        {
+          "name": "Chalk White",
+          "color": "#f2f0e4"
+        },
+        {
+          "name": "Chalk Yellow",
+          "color": "#e8d27c"
+        },
+        {
+          "name": "Chalk Rose",
+          "color": "#e2aab4"
+        },
+        {
+          "name": "Chalk Mint",
+          "color": "#bcd9c4"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Clay Wall",
+          "color": "#8a6a4f",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Olive Wall",
+          "color": "#6e7050",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Marigold",
+          "color": "#d99b2e",
+          "bias": "VERB"
+        },
+        {
+          "name": "Coral",
+          "color": "#c25e48",
+          "bias": "VERB"
+        },
+        {
+          "name": "Pale Sage",
+          "color": "#cdd9c6",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Pale Sand",
+          "color": "#e2d6ba",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Ash Blue",
+          "color": "#7b8b94",
+          "bias": "ADV"
+        },
+        {
+          "name": "Pewter",
+          "color": "#9a9d99",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 620
+    },
+    {
+      "name": "Parchment",
+      "tier": 1,
+      "fragment": "<g><filter id='m4s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='10' stdDeviation='14' flood-color='#1a1206' flood-opacity='0.3'/></filter><path d='M150 170 Q300 142 500 152 Q720 140 856 168 Q872 400 858 520 Q874 700 846 836 Q640 860 500 850 Q330 864 148 838 Q128 640 142 500 Q126 320 150 170 Z' fill='#e6d3a4' filter='url(#m4s)'/><path d='M150 170 Q300 142 500 152 Q720 140 856 168 Q872 400 858 520 Q874 700 846 836 Q640 860 500 850 Q330 864 148 838 Q128 640 142 500 Q126 320 150 170 Z' fill='none' stroke='#c2a064' stroke-width='7' opacity='0.55'/><g fill='#a87c3a'><ellipse cx='268' cy='268' rx='70' ry='44' opacity='0.09'/><ellipse cx='724' cy='686' rx='96' ry='56' opacity='0.08'/><ellipse cx='650' cy='234' rx='44' ry='28' opacity='0.07'/></g><path d='M148 838 Q190 800 232 842 L208 858 Z' fill='#cfb27c'/></g>",
+      "surface": "#e6d3a4",
+      "inks": [
+        {
+          "name": "Iron Gall",
+          "color": "#3b3024"
+        },
+        {
+          "name": "Oxblood",
+          "color": "#6e2b22"
+        },
+        {
+          "name": "Verdigris Deep",
+          "color": "#2e554f"
+        },
+        {
+          "name": "Walnut Brown",
+          "color": "#5a4326"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Saddle",
+          "color": "#6a4c2e",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Forest Floor",
+          "color": "#4c5232",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Burnt Sienna",
+          "color": "#a14a20",
+          "bias": "VERB"
+        },
+        {
+          "name": "Peacock",
+          "color": "#176066",
+          "bias": "VERB"
+        },
+        {
+          "name": "Faded Rose",
+          "color": "#c79684",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Eggshell Blue",
+          "color": "#bfd2cd",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Stone Gray",
+          "color": "#7e7c70",
+          "bias": "ADV"
+        },
+        {
+          "name": "Driftwood",
+          "color": "#a39a85",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 660
+    },
+    {
+      "name": "Linen",
+      "tier": 1,
+      "fragment": "<g><filter id='m5s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='10' stdDeviation='13' flood-color='#171309' flood-opacity='0.28'/></filter><path d='M142 168 Q500 152 858 164 Q866 500 854 834 Q500 850 146 838 Q134 500 142 168 Z' fill='#efe6d2' filter='url(#m5s)'/><g stroke='#ddd0b4' stroke-width='2' opacity='0.7'><path d='M150 282 Q500 274 850 280 M150 396 Q500 388 850 394 M150 510 Q500 502 850 508 M150 624 Q500 616 850 622 M150 738 Q500 730 850 736'/><path d='M262 172 Q256 500 264 834 M388 168 Q382 500 390 838 M500 166 Q494 500 502 840 M612 168 Q606 500 614 838 M738 172 Q732 500 740 834'/></g><g stroke='#cbbc98' stroke-width='3' stroke-linecap='round'><path d='M142 192 l-14 -8 M146 318 l-15 6 M140 462 l-13 -7 M144 608 l-15 7 M143 744 l-13 -6 M858 236 l14 -7 M854 388 l15 6 M856 542 l13 -7 M852 690 l15 7'/></g></g>",
+      "surface": "#efe6d2",
+      "inks": [
+        {
+          "name": "Indigo Dye",
+          "color": "#2b3a5c"
+        },
+        {
+          "name": "Madder Red",
+          "color": "#8c3026"
+        },
+        {
+          "name": "Thread Black",
+          "color": "#2a2723"
+        },
+        {
+          "name": "Olive Thread",
+          "color": "#55552e"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Earth Brown",
+          "color": "#5f4a36",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Sage Field",
+          "color": "#69715a",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Madder",
+          "color": "#a33524",
+          "bias": "VERB"
+        },
+        {
+          "name": "Lagoon",
+          "color": "#1d6a70",
+          "bias": "VERB"
+        },
+        {
+          "name": "Petal",
+          "color": "#e6c9c4",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Cornflower Pale",
+          "color": "#b9c7dd",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Flint",
+          "color": "#6b6f76",
+          "bias": "ADV"
+        },
+        {
+          "name": "Oat",
+          "color": "#b4ab98",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 660
+    },
+    {
+      "name": "Banner",
+      "tier": 1,
+      "fragment": "<g><filter id='m6s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='12' stdDeviation='14' flood-color='#120e08' flood-opacity='0.32'/></filter><rect x='112' y='148' width='776' height='18' rx='9' fill='#6e4a26'/><circle cx='104' cy='157' r='17' fill='#5a3a1c'/><circle cx='896' cy='157' r='17' fill='#5a3a1c'/><path d='M196 166 L196 128 L240 166' fill='none' stroke='#8a6234' stroke-width='5'/><path d='M804 166 L804 128 L760 166' fill='none' stroke='#8a6234' stroke-width='5'/><path d='M178 166 H822 V740 L500 672 L178 740 Z' fill='#f0e7d4' filter='url(#m6s)'/><path d='M178 166 H822 V740 L500 672 L178 740 Z' fill='none' stroke='#cfc2a2' stroke-width='4'/><path d='M196 184 H804' stroke='#cfc2a2' stroke-width='2.5' opacity='0.8'/><path d='M196 698 L500 634 L804 698' fill='none' stroke='#cfc2a2' stroke-width='2.5' opacity='0.8'/></g>",
+      "surface": "#f0e7d4",
+      "inks": [
+        {
+          "name": "Heraldic Red",
+          "color": "#8c2b25"
+        },
+        {
+          "name": "Royal Blue",
+          "color": "#2c3f70"
+        },
+        {
+          "name": "Forest Green",
+          "color": "#2f5238"
+        },
+        {
+          "name": "Jet",
+          "color": "#232020"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Castle Brown",
+          "color": "#5c452f",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Ivy",
+          "color": "#3f5639",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Tournament Red",
+          "color": "#9d2c1f",
+          "bias": "VERB"
+        },
+        {
+          "name": "Royal Teal",
+          "color": "#14606b",
+          "bias": "VERB"
+        },
+        {
+          "name": "Quartz Pink",
+          "color": "#dec4ce",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Mist Blue",
+          "color": "#b6c8d4",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Granite",
+          "color": "#62666d",
+          "bias": "ADV"
+        },
+        {
+          "name": "Smoke",
+          "color": "#a3a294",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 580
+    },
+    {
+      "name": "Ribbon",
+      "tier": 1,
+      "fragment": "<g><filter id='m7s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='10' stdDeviation='12' flood-color='#170a0d' flood-opacity='0.35'/></filter><path d='M84 330 H916 L846 486 L916 642 H84 L154 486 Z' fill='#8e2434' filter='url(#m7s)'/><path d='M84 330 L154 486 L84 642 L44 600 L98 486 L44 372 Z' fill='#6e1a26'/><path d='M916 330 L846 486 L916 642 L956 600 L902 486 L956 372 Z' fill='#6e1a26'/><path d='M118 350 H882' stroke='#a93a4a' stroke-width='5' opacity='0.9'/><path d='M118 622 H882' stroke='#a93a4a' stroke-width='5' opacity='0.9'/><path d='M160 486 H840' stroke='#7a1f2c' stroke-width='2' opacity='0.5'/></g>",
+      "surface": "#8e2434",
+      "inks": [
+        {
+          "name": "Gold Thread",
+          "color": "#e8c976"
+        },
+        {
+          "name": "Ivory Silk",
+          "color": "#f5efe2"
+        },
+        {
+          "name": "Pearl",
+          "color": "#dfe3ea"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Cocoa",
+          "color": "#5a4438",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Deep Olive",
+          "color": "#4a5138",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Midnight Teal",
+          "color": "#114a52",
+          "bias": "VERB"
+        },
+        {
+          "name": "Aubergine",
+          "color": "#46243f",
+          "bias": "VERB"
+        },
+        {
+          "name": "Champagne",
+          "color": "#e8d9c0",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Dusty Rose",
+          "color": "#d8b3ab",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Graphite Blue",
+          "color": "#4c5564",
+          "bias": "ADV"
+        },
+        {
+          "name": "Silver Sage",
+          "color": "#a8af9f",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 700
+    },
+    {
+      "name": "Wood Plank",
+      "tier": 1,
+      "fragment": "<g><filter id='m8s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='12' stdDeviation='14' flood-color='#100c06' flood-opacity='0.34'/></filter><g filter='url(#m8s)'><rect x='122' y='152' width='756' height='230' fill='#96703e'/><rect x='122' y='386' width='756' height='230' fill='#8a6638'/><rect x='122' y='620' width='756' height='230' fill='#96703e'/></g><g stroke='#7e5a33' stroke-width='3' opacity='0.55' fill='none'><path d='M140 222 Q420 210 600 226 Q760 238 866 224'/><path d='M134 318 Q380 332 560 318 Q740 306 872 320'/><path d='M138 470 Q400 456 620 472 Q780 484 868 470'/><path d='M134 556 Q360 568 580 554 Q760 544 870 558'/><path d='M140 700 Q420 688 640 704 Q790 714 866 700'/><path d='M136 792 Q380 804 600 790 Q770 780 868 794'/></g><ellipse cx='282' cy='500' rx='17' ry='23' fill='#6e4c28' opacity='0.8'/><ellipse cx='282' cy='500' rx='8' ry='12' fill='#5a3a1e'/><ellipse cx='716' cy='736' rx='14' ry='18' fill='#6e4c28' opacity='0.8'/><g fill='#5a4a36'><circle cx='150' cy='178' r='7'/><circle cx='850' cy='178' r='7'/><circle cx='150' cy='824' r='7'/><circle cx='850' cy='824' r='7'/></g></g>",
+      "surface": "#96703e",
+      "inks": [
+        {
+          "name": "Burnt Brand",
+          "color": "#33231a"
+        },
+        {
+          "name": "Tar Black",
+          "color": "#211c16"
+        },
+        {
+          "name": "White Paint",
+          "color": "#f2ead8"
+        },
+        {
+          "name": "Milk Paint Blue",
+          "color": "#d9e4e4"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Soil",
+          "color": "#4e3d2c",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Pine Needle",
+          "color": "#3e5037",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Ember Red",
+          "color": "#993019",
+          "bias": "VERB"
+        },
+        {
+          "name": "Deep Cyan",
+          "color": "#185f68",
+          "bias": "VERB"
+        },
+        {
+          "name": "Cream",
+          "color": "#ecdfc4",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Hazy Blue",
+          "color": "#b3c5cf",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Slate Blue",
+          "color": "#59616b",
+          "bias": "ADV"
+        },
+        {
+          "name": "Mushroom",
+          "color": "#a79c8c",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 700
+    },
+    {
+      "name": "Papyrus",
+      "tier": 2,
+      "fragment": "<g><filter id='m9s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='10' stdDeviation='13' flood-color='#161006' flood-opacity='0.3'/></filter><path d='M138 158 L304 150 L478 160 L652 150 L862 162 L854 388 L866 588 L852 846 L660 852 L468 842 L300 854 L142 844 L150 600 L136 392 Z' fill='#ddc89a' filter='url(#m9s)'/><g fill='#b89a64'><rect x='196' y='156' width='52' height='692' opacity='0.13'/><rect x='320' y='152' width='52' height='698' opacity='0.1'/><rect x='452' y='156' width='52' height='690' opacity='0.13'/><rect x='584' y='152' width='52' height='696' opacity='0.1'/><rect x='716' y='156' width='52' height='692' opacity='0.13'/><rect x='142' y='234' width='716' height='44' opacity='0.1'/><rect x='140' y='462' width='720' height='44' opacity='0.08'/><rect x='142' y='704' width='714' height='44' opacity='0.1'/></g><path d='M138 158 L304 150 L478 160 L652 150 L862 162 L854 388 L866 588 L852 846 L660 852 L468 842 L300 854 L142 844 L150 600 L136 392 Z' fill='none' stroke='#b09154' stroke-width='5' stroke-dasharray='3 5' opacity='0.8'/></g>",
+      "surface": "#ddc89a",
+      "inks": [
+        {
+          "name": "Carbon Ink",
+          "color": "#2a2620"
+        },
+        {
+          "name": "Red Ochre",
+          "color": "#8a3b24"
+        },
+        {
+          "name": "Nile Blue",
+          "color": "#28506b"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Nile Silt",
+          "color": "#5c4a32",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Reed Green",
+          "color": "#586044",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Pharaoh Red",
+          "color": "#9c3a1e",
+          "bias": "VERB"
+        },
+        {
+          "name": "Lapis Deep",
+          "color": "#1f3f7a",
+          "bias": "VERB"
+        },
+        {
+          "name": "Lotus",
+          "color": "#cf9a82",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Oasis Pale",
+          "color": "#c0d4c8",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Basalt",
+          "color": "#585348",
+          "bias": "ADV"
+        },
+        {
+          "name": "Sandstone",
+          "color": "#b3a07f",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 640
+    },
+    {
+      "name": "Leather",
+      "tier": 2,
+      "fragment": "<g><filter id='m10s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='12' stdDeviation='15' flood-color='#0e0903' flood-opacity='0.4'/></filter><rect x='126' y='150' width='748' height='700' rx='30' fill='#6b4a32' filter='url(#m10s)'/><rect x='126' y='150' width='748' height='700' rx='30' fill='none' stroke='#523623' stroke-width='5'/><rect x='154' y='178' width='692' height='644' rx='20' fill='none' stroke='#d9b87c' stroke-width='3.5' stroke-dasharray='14 11'/><g fill='#3a2818'><ellipse cx='300' cy='282' rx='80' ry='48' opacity='0.1'/><ellipse cx='692' cy='712' rx='100' ry='56' opacity='0.09'/><ellipse cx='640' cy='250' rx='52' ry='30' opacity='0.08'/><ellipse cx='262' cy='716' rx='58' ry='34' opacity='0.08'/></g><path d='M176 200 Q500 192 824 198' stroke='#7e5a3c' stroke-width='2' opacity='0.6' fill='none'/></g>",
+      "surface": "#6b4a32",
+      "inks": [
+        {
+          "name": "Gilt",
+          "color": "#e5c06b"
+        },
+        {
+          "name": "Bone White",
+          "color": "#efe7d6"
+        },
+        {
+          "name": "Pale Verdigris",
+          "color": "#bcd3c2"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Tan Hide",
+          "color": "#a8855c",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Olive Drab",
+          "color": "#5d6243",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Oxide Orange",
+          "color": "#b1521f",
+          "bias": "VERB"
+        },
+        {
+          "name": "Petrol",
+          "color": "#14525c",
+          "bias": "VERB"
+        },
+        {
+          "name": "Parchment Pale",
+          "color": "#e4d4b4",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Faded Lilac",
+          "color": "#c2b4c4",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Gunmetal",
+          "color": "#4a4f58",
+          "bias": "ADV"
+        },
+        {
+          "name": "Ash",
+          "color": "#9a958a",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 620
+    },
+    {
+      "name": "Vellum",
+      "tier": 2,
+      "fragment": "<g><filter id='m11s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='8' stdDeviation='12' flood-color='#1a1408' flood-opacity='0.25'/></filter><path d='M140 162 Q500 148 860 158 Q870 500 862 840 Q500 854 138 844 Q130 500 140 162 Z' fill='#f2ead8' filter='url(#m11s)'/><path d='M140 162 Q500 148 860 158 Q870 500 862 840 Q500 854 138 844 Q130 500 140 162 Z' fill='none' stroke='#dcd0b4' stroke-width='2.5'/><g stroke='#d8c8a8' stroke-width='2' opacity='0.55' fill='none'><path d='M170 300 Q360 282 540 304 Q720 322 836 300'/><path d='M168 560 Q340 580 530 560 Q710 542 838 564'/><path d='M172 716 Q380 700 560 720 Q730 736 832 714'/></g><g fill='#8a8474'><circle cx='172' cy='192' r='7'/><circle cx='828' cy='188' r='7'/><circle cx='174' cy='812' r='7'/><circle cx='826' cy='816' r='7'/></g><g fill='#fdfaf2' opacity='0.9'><circle cx='170' cy='190' r='2.5'/><circle cx='826' cy='186' r='2.5'/><circle cx='172' cy='810' r='2.5'/><circle cx='824' cy='814' r='2.5'/></g></g>",
+      "surface": "#f2ead8",
+      "inks": [
+        {
+          "name": "Sepia Script",
+          "color": "#5d452a"
+        },
+        {
+          "name": "Carmine",
+          "color": "#8e2434"
+        },
+        {
+          "name": "Slate Ink",
+          "color": "#3c4654"
+        },
+        {
+          "name": "Umber Ink",
+          "color": "#4a3a28"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Bark",
+          "color": "#56432f",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Laurel",
+          "color": "#44563e",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Cardinal",
+          "color": "#9b2820",
+          "bias": "VERB"
+        },
+        {
+          "name": "Ultramarine",
+          "color": "#2c4690",
+          "bias": "VERB"
+        },
+        {
+          "name": "Shell Pink",
+          "color": "#e5c8be",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Celadon",
+          "color": "#c4d6c0",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Lead",
+          "color": "#5b5f66",
+          "bias": "ADV"
+        },
+        {
+          "name": "Pumice",
+          "color": "#aba89a",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 680
+    },
+    {
+      "name": "Birch Bark",
+      "tier": 2,
+      "fragment": "<g><filter id='m12s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='10' stdDeviation='13' flood-color='#15110a' flood-opacity='0.3'/></filter><path d='M148 156 Q500 144 852 154 L860 844 Q500 858 144 848 Z' fill='#ece4d4' filter='url(#m12s)'/><ellipse cx='420' cy='320' rx='180' ry='90' fill='#e8cfc0' opacity='0.22'/><ellipse cx='640' cy='700' rx='160' ry='80' fill='#e0d2b8' opacity='0.25'/><g stroke='#4a4138' stroke-linecap='round' opacity='0.62'><path d='M218 232 h64' stroke-width='9'/><path d='M610 204 h88' stroke-width='7'/><path d='M330 410 h52' stroke-width='10'/><path d='M712 380 h66' stroke-width='8'/><path d='M204 588 h78' stroke-width='8'/><path d='M566 626 h48' stroke-width='11'/><path d='M748 588 h58' stroke-width='7'/><path d='M276 742 h84' stroke-width='8'/><path d='M620 790 h60' stroke-width='9'/><path d='M438 218 h40' stroke-width='8'/></g><path d='M852 154 L860 844 Q822 800 828 700 Q816 500 832 320 Q820 220 852 154 Z' fill='#d8c8ac'/><path d='M832 320 Q820 500 828 700' stroke='#b9a888' stroke-width='3' fill='none' opacity='0.7'/></g>",
+      "surface": "#ece4d4",
+      "inks": [
+        {
+          "name": "Charcoal Tip",
+          "color": "#2e2b27"
+        },
+        {
+          "name": "Berry Stain",
+          "color": "#79302e"
+        },
+        {
+          "name": "Pine Pitch",
+          "color": "#2f4a38"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Humus",
+          "color": "#4f3e2d",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Spruce",
+          "color": "#34493a",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Cranberry",
+          "color": "#92271f",
+          "bias": "VERB"
+        },
+        {
+          "name": "Glacier Teal",
+          "color": "#1b5f6a",
+          "bias": "VERB"
+        },
+        {
+          "name": "Petal Pink",
+          "color": "#d8a89e",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Ice Blue",
+          "color": "#bccfdc",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Pebble",
+          "color": "#75716a",
+          "bias": "ADV"
+        },
+        {
+          "name": "Birch Gray",
+          "color": "#adaca2",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 620
+    },
+    {
+      "name": "Concrete",
+      "tier": 2,
+      "fragment": "<g><filter id='m13s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='14' stdDeviation='16' flood-color='#08090c' flood-opacity='0.45'/></filter><path d='M152 190 L520 162 L842 174 L876 460 L860 798 L498 836 L130 812 L146 488 Z' fill='#3d4754' filter='url(#m13s)'/><path d='M152 190 L520 162 L842 174 L876 460 L860 798 L498 836 L130 812 L146 488 Z' fill='none' stroke='#2c343e' stroke-width='6'/><path d='M842 174 L876 460 L848 452 L824 196 Z' fill='#4a5664'/><path d='M130 812 L498 836 L494 810 L148 790 Z' fill='#333d49'/><g stroke='#9aa4ac' stroke-width='2' opacity='0.4'><path d='M232 300 L420 276'/><path d='M580 690 L760 660'/><path d='M300 640 L380 628'/><path d='M640 250 L730 240'/></g><path d='M152 190 L196 240 L178 310' stroke='#2c343e' stroke-width='3' fill='none' opacity='0.8'/><path d='M860 798 L800 760 L788 700' stroke='#2c343e' stroke-width='3' fill='none' opacity='0.8'/></g>",
+      "surface": "#3d4754",
+      "inks": [
+        {
+          "name": "Chalk Line",
+          "color": "#eef0ea"
+        },
+        {
+          "name": "Limewash",
+          "color": "#d9ddcf"
+        },
+        {
+          "name": "Ochre Marker",
+          "color": "#e0b15e"
+        },
+        {
+          "name": "Rust Scratch",
+          "color": "#d77f5a"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Peat",
+          "color": "#6e5a3e",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Lichen",
+          "color": "#74775a",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Amber",
+          "color": "#cf8c2a",
+          "bias": "VERB"
+        },
+        {
+          "name": "Brick",
+          "color": "#b04a32",
+          "bias": "VERB"
+        },
+        {
+          "name": "Mist White",
+          "color": "#cfd6d2",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Bone Pale",
+          "color": "#e0d8c2",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Harbor",
+          "color": "#6a7a88",
+          "bias": "ADV"
+        },
+        {
+          "name": "Zinc",
+          "color": "#9aa0a4",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 660
+    },
+    {
+      "name": "Clay Tablet",
+      "tier": 3,
+      "fragment": "<g><filter id='m14s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='14' stdDeviation='15' flood-color='#0f0804' flood-opacity='0.4'/></filter><path d='M170 170 Q500 140 830 168 Q872 500 832 832 Q500 862 168 834 Q130 500 170 170 Z' fill='#b5714c' filter='url(#m14s)'/><path d='M170 170 Q500 140 830 168 Q872 500 832 832 Q500 862 168 834 Q130 500 170 170 Z' fill='none' stroke='#8a4f30' stroke-width='6' opacity='0.8'/><path d='M210 210 Q500 186 790 208 Q824 500 792 792 Q500 816 208 794 Q178 500 210 210 Z' fill='none' stroke='#8a4f30' stroke-width='3' opacity='0.6'/><g fill='#7e4226' opacity='0.85'><path d='M250 248 l13 26 l13 -26 Z M300 248 l13 26 l13 -26 Z M354 248 l13 26 l13 -26 Z M424 250 l-26 11 l26 11 Z M470 248 l13 26 l13 -26 Z M540 250 l-26 11 l26 11 Z M586 248 l13 26 l13 -26 Z M636 248 l13 26 l13 -26 Z M706 250 l-26 11 l26 11 Z'/><path d='M276 736 l13 26 l13 -26 Z M344 738 l-26 11 l26 11 Z M390 736 l13 26 l13 -26 Z M440 736 l13 26 l13 -26 Z M510 738 l-26 11 l26 11 Z M556 736 l13 26 l13 -26 Z M624 738 l-26 11 l26 11 Z M670 736 l13 26 l13 -26 Z'/></g><path d='M792 300 L758 360 L776 420' stroke='#8a4f30' stroke-width='4' fill='none' opacity='0.7'/><path d='M214 620 L246 660 L232 712' stroke='#8a4f30' stroke-width='4' fill='none' opacity='0.7'/></g>",
+      "surface": "#b5714c",
+      "inks": [
+        {
+          "name": "Pressed Shadow",
+          "color": "#4a2c1c"
+        },
+        {
+          "name": "Slip White",
+          "color": "#efe3d2"
+        },
+        {
+          "name": "Charcoal Wash",
+          "color": "#33291f"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Dark Loam",
+          "color": "#523d2a",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Olive Earth",
+          "color": "#56583c",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Kiln Red",
+          "color": "#8e2a18",
+          "bias": "VERB"
+        },
+        {
+          "name": "Euphrates",
+          "color": "#185a64",
+          "bias": "VERB"
+        },
+        {
+          "name": "Sand Pale",
+          "color": "#e8d6b6",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Dawn Pink",
+          "color": "#ddb8a8",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Basalt Gray",
+          "color": "#565049",
+          "bias": "ADV"
+        },
+        {
+          "name": "Dust",
+          "color": "#a89a88",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 540
+    },
+    {
+      "name": "Stone Carving",
+      "tier": 3,
+      "fragment": "<g><filter id='m15s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='14' stdDeviation='16' flood-color='#070708' flood-opacity='0.45'/></filter><path d='M138 162 L862 156 L870 842 L132 848 Z' fill='#6e6e68' filter='url(#m15s)'/><path d='M158 182 L842 176 L850 822 L152 828 Z' fill='#82827c'/><path d='M138 162 L158 182 M862 156 L842 176 M870 842 L850 822 M132 848 L152 828' stroke='#62625c' stroke-width='4'/><path d='M138 162 L196 158 L138 216 Z' fill='#6a6a64'/><path d='M870 842 L812 846 L868 788 Z' fill='#6a6a64'/><g stroke='#62625c' stroke-width='2.5' opacity='0.6' fill='none'><path d='M238 226 L268 280 L252 330'/><path d='M716 740 L748 700 L740 650'/></g><g fill='#6a6a64' opacity='0.5'><circle cx='312' cy='672' r='3'/><circle cx='562' cy='238' r='3'/><circle cx='680' cy='320' r='2.5'/><circle cx='250' cy='450' r='2.5'/><circle cx='742' cy='540' r='3'/><circle cx='420' cy='760' r='2.5'/></g><path d='M188 206 H812' stroke='#9c9c96' stroke-width='2' opacity='0.5'/><path d='M190 798 H810' stroke='#9c9c96' stroke-width='2' opacity='0.5'/></g>",
+      "surface": "#82827c",
+      "inks": [
+        {
+          "name": "Pigment Black",
+          "color": "#232323"
+        },
+        {
+          "name": "Lime White",
+          "color": "#f1efe6"
+        },
+        {
+          "name": "Oxide Red",
+          "color": "#5a1812"
+        },
+        {
+          "name": "Deep Bronze",
+          "color": "#3a2d1b"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Earth",
+          "color": "#54432f",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Moss Stone",
+          "color": "#4c5a42",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Oxblood Red",
+          "color": "#6e1f18",
+          "bias": "VERB"
+        },
+        {
+          "name": "Deep Indigo",
+          "color": "#283460",
+          "bias": "VERB"
+        },
+        {
+          "name": "Alabaster",
+          "color": "#e8e2d2",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Pale Rose",
+          "color": "#dcc2bc",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Charcoal",
+          "color": "#3a3c3e",
+          "bias": "ADV"
+        },
+        {
+          "name": "Pale Zinc",
+          "color": "#b8bcba",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 640
+    },
+    {
+      "name": "Copper Plate",
+      "tier": 3,
+      "fragment": "<g><filter id='m16s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='12' stdDeviation='15' flood-color='#0a0603' flood-opacity='0.42'/></filter><rect x='128' y='152' width='744' height='696' rx='14' fill='#9c5c30' filter='url(#m16s)'/><rect x='158' y='182' width='684' height='636' rx='8' fill='#b87341'/><g stroke='#c98a52' stroke-width='2' opacity='0.35'><path d='M170 260 H830 M170 350 H830 M170 440 H830 M170 530 H830 M170 620 H830 M170 710 H830'/></g><g fill='#3f8a78' opacity='0.32'><ellipse cx='262' cy='270' rx='60' ry='38'/><ellipse cx='742' cy='716' rx='76' ry='44'/><ellipse cx='690' cy='244' rx='34' ry='22'/></g><g><circle cx='178' cy='202' r='13' fill='#7e4a26'/><circle cx='822' cy='202' r='13' fill='#7e4a26'/><circle cx='178' cy='798' r='13' fill='#7e4a26'/><circle cx='822' cy='798' r='13' fill='#7e4a26'/><circle cx='174' cy='198' r='4' fill='#d99a62'/><circle cx='818' cy='198' r='4' fill='#d99a62'/><circle cx='174' cy='794' r='4' fill='#d99a62'/><circle cx='818' cy='794' r='4' fill='#d99a62'/></g></g>",
+      "surface": "#b87341",
+      "inks": [
+        {
+          "name": "Patina",
+          "color": "#123f36"
+        },
+        {
+          "name": "Enamel Black",
+          "color": "#221d18"
+        },
+        {
+          "name": "Silver Inlay",
+          "color": "#e9e9e2"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Walnut",
+          "color": "#4f3b28",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Verde",
+          "color": "#3f5a46",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Teal Patina",
+          "color": "#0f5e58",
+          "bias": "VERB"
+        },
+        {
+          "name": "Crimson Lake",
+          "color": "#8c1f24",
+          "bias": "VERB"
+        },
+        {
+          "name": "Linen Pale",
+          "color": "#ead9c0",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Powder",
+          "color": "#b8c8d2",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Anthracite",
+          "color": "#41434a",
+          "bias": "ADV"
+        },
+        {
+          "name": "Greige",
+          "color": "#a09886",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 620
+    },
+    {
+      "name": "Stained Glass",
+      "tier": 3,
+      "fragment": "<g><filter id='m17s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='12' stdDeviation='16' flood-color='#06070a' flood-opacity='0.45'/></filter><rect x='110' y='150' width='780' height='700' rx='16' fill='#2a2a28' filter='url(#m17s)'/><g stroke='#2a2a28' stroke-width='9'><rect x='134' y='174' width='118' height='150' fill='#7c2230'/><rect x='134' y='324' width='118' height='176' fill='#28447e'/><rect x='134' y='500' width='118' height='176' fill='#3f6a48'/><rect x='134' y='676' width='118' height='150' fill='#c3922e'/><rect x='748' y='174' width='118' height='150' fill='#28447e'/><rect x='748' y='324' width='118' height='176' fill='#c3922e'/><rect x='748' y='500' width='118' height='176' fill='#7c2230'/><rect x='748' y='676' width='118' height='150' fill='#5e3a78'/><rect x='252' y='174' width='166' height='128' fill='#3f6a48'/><rect x='418' y='174' width='164' height='128' fill='#5e3a78'/><rect x='582' y='174' width='166' height='128' fill='#7c2230'/><rect x='252' y='698' width='166' height='128' fill='#c3922e'/><rect x='418' y='698' width='164' height='128' fill='#28447e'/><rect x='582' y='698' width='166' height='128' fill='#3f6a48'/><rect x='252' y='302' width='496' height='396' fill='#e8e4d8'/></g><path d='M286 668 L420 336' stroke='#f6f4ec' stroke-width='26' opacity='0.18'/><path d='M348 668 L456 400' stroke='#f6f4ec' stroke-width='12' opacity='0.14'/></g>",
+      "surface": "#e8e4d8",
+      "inks": [
+        {
+          "name": "Lead Black",
+          "color": "#2a2a2e"
+        },
+        {
+          "name": "Cobalt Glass",
+          "color": "#28447e"
+        },
+        {
+          "name": "Garnet",
+          "color": "#7c2230"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Cathedral Stone",
+          "color": "#6e6354",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Dark Timber",
+          "color": "#4a392a",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Twilight Blue",
+          "color": "#23355c",
+          "bias": "VERB"
+        },
+        {
+          "name": "Wine",
+          "color": "#5e1f2e",
+          "bias": "VERB"
+        },
+        {
+          "name": "Warm Plaster",
+          "color": "#c0ab86",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Sky Pale",
+          "color": "#b4c4d4",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Cool Stone",
+          "color": "#767e84",
+          "bias": "ADV"
+        },
+        {
+          "name": "Mortar",
+          "color": "#9a948a",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 470
+    },
+    {
+      "name": "Gold Leaf Panel",
+      "tier": 4,
+      "fragment": "<g><filter id='m18s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='14' stdDeviation='18' flood-color='#0a0702' flood-opacity='0.5'/></filter><rect x='118' y='142' width='764' height='716' rx='10' fill='#8a6a18' filter='url(#m18s)'/><rect x='146' y='170' width='708' height='660' rx='6' fill='#c9a227'/><rect x='168' y='192' width='664' height='616' fill='none' stroke='#e8cc6a' stroke-width='3'/><ellipse cx='430' cy='330' rx='280' ry='150' fill='#e0bc4a' opacity='0.35'/><ellipse cx='620' cy='680' rx='200' ry='100' fill='#a8841c' opacity='0.3'/><g stroke='#a8841c' stroke-width='1.5' opacity='0.5' fill='none'><path d='M210 240 L290 252 L342 230'/><path d='M640 760 L712 744 L788 762'/><path d='M210 700 L256 686'/></g><g fill='#e8cc6a'><circle cx='196' cy='220' r='9'/><circle cx='220' cy='220' r='9'/><circle cx='196' cy='244' r='9'/><circle cx='804' cy='220' r='9'/><circle cx='780' cy='220' r='9'/><circle cx='804' cy='244' r='9'/><circle cx='196' cy='780' r='9'/><circle cx='220' cy='780' r='9'/><circle cx='196' cy='756' r='9'/><circle cx='804' cy='780' r='9'/><circle cx='780' cy='780' r='9'/><circle cx='804' cy='756' r='9'/></g><g fill='#8a6a18'><circle cx='196' cy='220' r='3.5'/><circle cx='804' cy='220' r='3.5'/><circle cx='196' cy='780' r='3.5'/><circle cx='804' cy='780' r='3.5'/></g></g>",
+      "surface": "#c9a227",
+      "inks": [
+        {
+          "name": "Midnight",
+          "color": "#1d2030"
+        },
+        {
+          "name": "Oxblood Enamel",
+          "color": "#5c1f1c"
+        },
+        {
+          "name": "Imperial Jade",
+          "color": "#1f4a3a"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Mahogany",
+          "color": "#4e2e1e",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Deep Forest",
+          "color": "#2e4632",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Imperial Red",
+          "color": "#8c1e22",
+          "bias": "VERB"
+        },
+        {
+          "name": "Byzantine Blue",
+          "color": "#243a74",
+          "bias": "VERB"
+        },
+        {
+          "name": "Cream Silk",
+          "color": "#efe3cc",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Pale Celadon",
+          "color": "#c6d4c4",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Onyx",
+          "color": "#26242a",
+          "bias": "ADV"
+        },
+        {
+          "name": "Taupe",
+          "color": "#8e8474",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 600
+    },
+    {
+      "name": "Illuminated Manuscript",
+      "tier": 4,
+      "fragment": "<g><filter id='m19s' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='12' stdDeviation='15' flood-color='#140e04' flood-opacity='0.35'/></filter><path d='M136 150 Q500 138 864 148 L870 850 Q500 862 130 852 Z' fill='#efe2c0' filter='url(#m19s)'/><path d='M136 150 Q500 138 864 148 L870 850 Q500 862 130 852 Z' fill='none' stroke='#d4c294' stroke-width='3'/><rect x='162' y='176' width='92' height='648' fill='#9a7218' opacity='0.16'/><path d='M208 200 Q176 290 212 380 Q244 470 206 560 Q174 650 210 740 Q228 786 208 800' stroke='#3f5a3a' stroke-width='7' fill='none'/><g fill='#93251f'><circle cx='232' cy='262' r='13'/><circle cx='182' cy='448' r='13'/><circle cx='234' cy='634' r='13'/></g><g fill='#27418a'><circle cx='180' cy='340' r='11'/><circle cx='236' cy='524' r='11'/><circle cx='184' cy='722' r='11'/></g><g fill='#c9a227'><circle cx='232' cy='262' r='5'/><circle cx='180' cy='340' r='4.5'/><circle cx='182' cy='448' r='5'/><circle cx='236' cy='524' r='4.5'/><circle cx='234' cy='634' r='5'/><circle cx='184' cy='722' r='4.5'/></g><path d='M280 196 H838' stroke='#9a7218' stroke-width='5' opacity='0.7'/><path d='M280 214 H838' stroke='#93251f' stroke-width='2.5' opacity='0.7'/><g stroke='#d4c294' stroke-width='2' opacity='0.8'><path d='M300 660 H820 M300 692 H820 M300 724 H796 M300 756 H820 M300 788 H772'/></g><rect x='292' y='238' width='110' height='110' fill='none' stroke='#9a7218' stroke-width='4'/><path d='M292 238 L402 348 M402 238 L292 348' stroke='#9a7218' stroke-width='2.5' opacity='0.7'/></g>",
+      "surface": "#efe2c0",
+      "inks": [
+        {
+          "name": "Vermilion",
+          "color": "#93251f"
+        },
+        {
+          "name": "Lapis",
+          "color": "#2b4a8c"
+        },
+        {
+          "name": "Iron Gall Ink",
+          "color": "#3a2f22"
+        },
+        {
+          "name": "Burnished Gold",
+          "color": "#8a6512"
+        }
+      ],
+      "backgrounds": [
+        {
+          "name": "Monastery Brown",
+          "color": "#57422c",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Hunter",
+          "color": "#35503c",
+          "bias": "NOUN"
+        },
+        {
+          "name": "Regal Red",
+          "color": "#93251f",
+          "bias": "VERB"
+        },
+        {
+          "name": "Sapphire",
+          "color": "#27418a",
+          "bias": "VERB"
+        },
+        {
+          "name": "Rose Ash",
+          "color": "#dcc0b6",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Duck Egg",
+          "color": "#c2d2cc",
+          "bias": "ADJ"
+        },
+        {
+          "name": "Greystone",
+          "color": "#6a6a62",
+          "bias": "ADV"
+        },
+        {
+          "name": "Mouse",
+          "color": "#a39d8c",
+          "bias": "ADV"
+        }
+      ],
+      "safeWidth": 520
+    }
+  ]
+}

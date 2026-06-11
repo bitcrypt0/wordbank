@@ -1,0 +1,159 @@
+.head {
+  padding-block: var(--space-7) var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+  max-width: 44rem;
+}
+
+.title {
+  font-size: var(--text-2xl);
+}
+
+.lede {
+  color: var(--ink-soft);
+}
+
+.ddLookup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.ddLookup input {
+  font-size: var(--text-sm);
+  padding: 0.45em 0.7em;
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-1);
+  background: var(--paper-raised);
+  width: 7.5rem;
+}
+
+.filters {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+  padding: var(--space-3) 0 var(--space-5);
+  border-top: 1px solid var(--paper-edge);
+}
+
+.filters select,
+.search {
+  font: inherit;
+  font-size: var(--text-sm);
+  background: var(--paper-raised);
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-1);
+  padding: 0.45em 0.7em;
+  color: var(--ink);
+}
+
+.search {
+  flex: 1 1 14rem;
+  min-width: 10rem;
+}
+
+.honorsToggle {
+  display: inline-flex;
+  gap: 0.45em;
+  align-items: center;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-5);
+}
+
+@media (max-width: 1000px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 440px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.cardLink {
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-2);
+  overflow: hidden;
+  background: var(--paper-raised);
+  box-shadow: var(--shadow-lift);
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+.cardLink:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-plate);
+}
+
+.cardMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) 0;
+}
+
+.cardWord {
+  font-size: var(--text-md);
+  font-weight: 620;
+}
+
+.cardId {
+  color: var(--ink-faint);
+  font-size: var(--text-xs);
+}
+
+.cardBadges {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.cardCat {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.note {
+  margin-top: var(--space-6);
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+
+/* Honors-scan status line (full-collection 1/1 search). */
+.scanNote {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  margin-bottom: var(--space-4);
+}

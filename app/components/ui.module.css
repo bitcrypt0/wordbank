@@ -1,0 +1,166 @@
+.stat {
+  display: grid;
+  gap: 0.15rem;
+  align-content: start;
+}
+
+.statValue {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+.statDetail {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+
+.stateBox {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+}
+
+.stateGlyph {
+  font-size: var(--text-xl);
+  color: var(--ink-faint);
+  line-height: 1;
+}
+
+.stateError .stateGlyph {
+  color: var(--danger);
+}
+
+.stateTitle {
+  font-weight: 600;
+  font-size: var(--text-md);
+}
+
+.stateHint {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  max-width: 36ch;
+}
+
+.meter {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.meterHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.meterDetail {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.meterTrack {
+  position: relative;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--paper-deep);
+  border: 1px solid var(--paper-edge);
+  overflow: visible;
+}
+
+.meterFill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width var(--dur-base) var(--ease-out);
+}
+
+.meterMark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--sepia);
+  transform: translateX(-1px);
+}
+
+.meterMarkLabel {
+  font-size: var(--text-xs);
+  color: var(--sepia);
+}
+
+.mockAction {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.mockNote {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  background: var(--paper-deep);
+  border: 1px dashed var(--paper-fleck);
+  border-radius: var(--radius-1);
+  padding: 0.4em 0.7em;
+  max-width: 34rem;
+}
+
+/* Real transaction button (TxButton) — replaces MockAction at wiring. */
+.txNote {
+  font-size: var(--text-xs);
+  border-radius: var(--radius-1);
+  padding: 0.4em 0.7em;
+  max-width: 34rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.txInfo {
+  color: var(--ink-soft);
+  background: var(--paper-deep);
+  border: 1px solid var(--paper-edge);
+}
+
+.txOk {
+  color: var(--ok);
+  background: rgba(45, 122, 90, 0.08);
+  border: 1px solid var(--ok);
+}
+
+.txError {
+  color: var(--danger);
+  background: rgba(176, 58, 46, 0.07);
+  border: 1px solid var(--danger);
+}
+
+.txLink {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.txSpinner {
+  width: 0.8em;
+  height: 0.8em;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: txspin 0.8s linear infinite;
+  flex: none;
+}
+
+@keyframes txspin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.txHint {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}

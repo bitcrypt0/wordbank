@@ -1,0 +1,117 @@
+.hero {
+  padding-block: var(--space-9) var(--space-7);
+  text-align: center;
+}
+
+.heroMark {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-5);
+}
+
+.heroTitle {
+  font-size: clamp(var(--text-2xl), 6vw, var(--text-4xl));
+  font-weight: 640;
+  letter-spacing: -0.015em;
+}
+
+.heroLede {
+  max-width: 44rem;
+  margin: var(--space-5) auto 0;
+  font-size: var(--text-md);
+  color: var(--ink-soft);
+}
+
+.heroCtas {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-3);
+  padding-block: var(--space-5);
+}
+
+.stripItem {
+  display: block;
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-2);
+  overflow: hidden;
+  box-shadow: var(--shadow-lift);
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+.stripItem:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-plate);
+}
+
+@media (max-width: 900px) {
+  .strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 540px) {
+  .strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 900px) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.chapters {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-7) var(--space-8);
+  padding-block: var(--space-8);
+}
+
+@media (max-width: 800px) {
+  .chapters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chapter {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.chapterNum {
+  color: var(--ink-faint);
+}
+
+.chapterTitle {
+  font-size: var(--text-xl);
+  font-weight: 620;
+}
+
+.chapterBody {
+  color: var(--ink-soft);
+}
+
+.chapterLink {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  text-decoration: none;
+}

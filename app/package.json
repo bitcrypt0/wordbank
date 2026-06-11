@@ -1,0 +1,35 @@
+{
+  "name": "wordbank-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WORDBANK dApp — production frontend (agent 9). Injected wallets only; no RainbowKit/WalletConnect/Web3Modal by charter.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "sync:abis": "node scripts/sync-abis.ts",
+    "sync:addresses": "node scripts/sync-addresses.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@uniswap/sdk-core": "^7.17.0",
+    "@uniswap/universal-router-sdk": "^5.7.0",
+    "@uniswap/v4-sdk": "^2.2.2",
+    "next": "^15.3.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.1.0",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.8.0",
+    "vitest": "^2.1.8"
+  }
+}

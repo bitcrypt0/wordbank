@@ -1,0 +1,59 @@
+# Foundry build artifacts
+out/
+cache/
+broadcast/
+
+# Node / Hardhat / frontend
+node_modules/
+deploy/artifacts/
+deploy/cache/
+app/.next/
+app/out/
+
+# Environment & secrets — NEVER commit keys
+.env
+.env.*
+!.env.example
+
+# Wallet / private-key files (belt+braces; mint-bot has its own .gitignore too)
+mint-wallets/
+wallets.json
+wallets-*.json
+*.key
+*.keys.json
+
+# Vercel project linkage / tokens (created by `vercel link` / deploy)
+.vercel/
+app/.vercel/
+
+# Local backups / stale art-source snapshots — local-only, not for a public repo
+_backup/
+
+# Frontend build/test artifacts
+*.tsbuildinfo
+app/next-env.d.ts
+coverage/
+.turbo/
+
+# Editor / agent scratch
+tmpclaude-*
+
+# OS noise
+Thumbs.db
+.DS_Store
+
+# ── Internal docs — EXCLUDED from the PUBLIC repo (files stay on disk locally) ──
+# Owner decision 2026-06-16: repo goes public; these internal/process docs are
+# kept private. The PUBLIC whitepaper (WHITEPAPER-PUBLIC.md) stays tracked.
+/WHITEPAPER.md
+agents/
+audit/
+/AGENTS.md
+/AGENT_INITIALIZATION_ORDER.txt
+/WordBank Project Architecture.txt
+.claude/
+# Stray internal-doc artifacts anywhere in the tree (belt+braces; agents/ already
+# covers the ones under agents/, this catches any that land elsewhere).
+*OVERSEER_REVIEW*
+INIT_PROMPT*
+DESIGN_NOTES*

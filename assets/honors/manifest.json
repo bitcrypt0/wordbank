@@ -1,0 +1,152 @@
+{
+  "Rekt": {
+    "file": "Rekt.svg",
+    "category": 1,
+    "material": 13,
+    "background": 3
+  },
+  "Pepe": {
+    "file": "Pepe.svg",
+    "category": 0,
+    "material": 0,
+    "background": 1
+  },
+  "Degen": {
+    "file": "Degen.svg",
+    "category": 2,
+    "material": 1,
+    "background": 4
+  },
+  "Lambo": {
+    "file": "Lambo.svg",
+    "category": 0,
+    "material": 16,
+    "background": 6
+  },
+  "Snipe": {
+    "file": "Snipe.svg",
+    "category": 1,
+    "material": 12,
+    "background": 1
+  },
+  "Liquid": {
+    "file": "Liquid.svg",
+    "category": 0,
+    "material": 11,
+    "background": 3
+  },
+  "Pump": {
+    "file": "Pump.svg",
+    "category": 1,
+    "material": 3,
+    "background": 2
+  },
+  "Dump": {
+    "file": "Dump.svg",
+    "category": 1,
+    "material": 2,
+    "background": 2
+  },
+  "Rug": {
+    "file": "Rug.svg",
+    "category": 1,
+    "material": 5,
+    "background": 2
+  },
+  "Floor": {
+    "file": "Floor.svg",
+    "category": 0,
+    "material": 15,
+    "background": 6
+  },
+  "Yield": {
+    "file": "Yield.svg",
+    "category": 0,
+    "material": 4,
+    "background": 1
+  },
+  "Swap": {
+    "file": "Swap.svg",
+    "category": 1,
+    "material": 0,
+    "background": 3
+  },
+  "Trade": {
+    "file": "Trade.svg",
+    "category": 1,
+    "material": 14,
+    "background": 3
+  },
+  "Stake": {
+    "file": "Stake.svg",
+    "category": 1,
+    "material": 8,
+    "background": 1
+  },
+  "Airdrop": {
+    "file": "Airdrop.svg",
+    "category": 0,
+    "material": 1,
+    "background": 5
+  },
+  "Farm": {
+    "file": "Farm.svg",
+    "category": 1,
+    "material": 8,
+    "background": 0
+  },
+  "Satoshi": {
+    "file": "Satoshi.svg",
+    "category": 0,
+    "material": 18,
+    "background": 6
+  },
+  "Hype": {
+    "file": "Hype.svg",
+    "category": 1,
+    "material": 13,
+    "background": 6
+  },
+  "Fee": {
+    "file": "Fee.svg",
+    "category": 0,
+    "material": 2,
+    "background": 6
+  },
+  "Gas": {
+    "file": "Gas.svg",
+    "category": 0,
+    "material": 16,
+    "background": 2
+  },
+  "Sweep": {
+    "file": "Sweep.svg",
+    "category": 1,
+    "material": 9,
+    "background": 7
+  },
+  "Mint": {
+    "file": "Mint.svg",
+    "category": 1,
+    "material": 0,
+    "background": 5
+  },
+  "Dev": {
+    "file": "Dev.svg",
+    "category": 0,
+    "material": 3,
+    "background": 6
+  },
+  "Token": {
+    "file": "Token.svg",
+    "category": 0,
+    "material": 10,
+    "background": 3
+  },
+  "Moon": {
+    "file": "Moon.svg",
+    "category": 0,
+    "material": 19,
+    "background": 3
+  }
+}

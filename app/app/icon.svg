@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- WORDBANK favicon — identical geometry to components/Logo.tsx (WordbankGlyph).
+       Light tab: ink plate / paper letter. Dark tab: inverts via media query. -->
+  <style>
+    .ground { fill: #1b1b22; }
+    .letter { stroke: #f6f1e4; }
+    @media (prefers-color-scheme: dark) {
+      .ground { fill: #f6f1e4; }
+      .letter { stroke: #1b1b22; }
+    }
+  </style>
+  <rect class="ground" width="64" height="64" rx="6" />
+  <rect class="letter" x="3.5" y="3.5" width="57" height="57" rx="3.5" fill="none" stroke-width="1" opacity="0.28" />
+  <g class="letter" fill="none">
+    <polyline points="15,20 24.5,45.5 32,24.5 39.5,45.5 49,20" stroke-width="5.2" stroke-linecap="butt" stroke-linejoin="miter" />
+    <path d="M10.8 18.4 h8.4 M44.8 18.4 h8.4" stroke-width="3.2" />
+  </g>
+</svg>

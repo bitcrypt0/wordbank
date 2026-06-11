@@ -1,0 +1,15 @@
+.lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--ink);
+}
+
+.wordmark {
+  font-family: var(--font-serif);
+  font-weight: 650;
+  font-size: 1.18rem;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  transform: translateY(0.04em); /* optical alignment with the plate */
+}

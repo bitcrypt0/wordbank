@@ -1,0 +1,5 @@
+{
+  "$schema_note": "Material rarity weights for the offchain trait assignment (tools/assign_traits.py). Weights are per-TIER shares of the 9,975 non-honors tokens, split evenly among the tier's materials. Ink selection is uniform within validInks[material]. Background selection within validBackgrounds[material] is POS-biased: a token draws from its category's bias group with probability biasStrength, else uniformly from the whole table (color selection ONLY — system invariant 6: never odds, never gameplay).",
+  "tierShares": { "Common": 0.52, "Uncommon": 0.26, "Rare": 0.135, "Epic": 0.065, "Legendary": 0.02 },
+  "biasStrength": 0.7
+}

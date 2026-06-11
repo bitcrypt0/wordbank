@@ -1,0 +1,433 @@
+.head {
+  padding-block: var(--space-7) var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+  max-width: 46rem;
+}
+
+.title {
+  font-size: var(--text-2xl);
+}
+
+.lede {
+  color: var(--ink-soft);
+}
+
+.gate {
+  padding: var(--space-8) var(--space-6);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+.gateTitle {
+  font-size: var(--text-xl);
+}
+
+.gateNote {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  max-width: 36rem;
+}
+
+.totals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+  padding: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+@media (max-width: 760px) {
+  .totals {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Responsive NFT card grid ── */
+.grid {
+  list-style: none;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 560px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: var(--space-3);
+  }
+}
+
+.card {
+  position: relative;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--paper);
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-2);
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+}
+
+.card:hover {
+  border-color: var(--sepia);
+  box-shadow: var(--shadow-1, 0 4px 16px rgba(0, 0, 0, 0.08));
+  transform: translateY(-2px);
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.cardSelected {
+  border-color: var(--teal);
+  background: var(--paper-deep);
+  box-shadow: inset 0 0 0 1px var(--teal);
+}
+
+.cardCheck {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  background: var(--paper);
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.cardCheck input {
+  width: 1.05rem;
+  height: 1.05rem;
+  cursor: pointer;
+}
+
+.cardBounty {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 2;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--gold-leaf, #b8902a);
+  background: rgba(184, 144, 42, 0.14);
+  border: 1px solid rgba(184, 144, 42, 0.4);
+  border-radius: var(--radius-1);
+  padding: 0.15em 0.45em;
+}
+
+.cardArt {
+  display: block;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  border-radius: var(--radius-1);
+  overflow: hidden;
+  border: 1px solid var(--paper-edge);
+  background: var(--paper-deep);
+}
+
+.cardBody {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.cardWord {
+  font-weight: 640;
+  font-size: var(--text-md, 1rem);
+  line-height: 1.2;
+}
+
+.cardId {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+
+.cardPending {
+  margin-top: 0.1rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--teal);
+  font-size: var(--text-sm);
+}
+
+.cardPendingLabel {
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+
+/* ── Batch action bar (select-all + Claim + Unbind) ── */
+.actionBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4) 0;
+}
+
+.actionBarTop {
+  padding-top: var(--space-2);
+  border-bottom: 1px solid var(--paper-edge);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-4);
+}
+
+.selectLine {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.selectAll {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.selectAll input {
+  width: 1.05rem;
+  height: 1.05rem;
+  cursor: pointer;
+}
+
+.selectSummary {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.batchActions {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* A clear visual gap between the safe Claim action and the destructive Unbind. */
+.batchDivider {
+  align-self: stretch;
+  width: 1px;
+  background: var(--paper-edge);
+}
+
+@media (max-width: 560px) {
+  .batchDivider {
+    display: none;
+  }
+  .batchActions {
+    width: 100%;
+  }
+}
+
+.txHintInline {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  margin-top: 0.25rem;
+}
+
+.unbindTriggerWrap {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+/* ── Batch-unbind confirmation panel (irreversibility-parity gate) ── */
+.unbindPanel {
+  flex: 1 1 100%;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: rgba(176, 51, 51, 0.04);
+  border: 1.5px solid var(--danger, #b03333);
+  border-radius: var(--radius-2);
+  margin-top: var(--space-2);
+}
+
+.unbindWarnTitle {
+  font-size: var(--text-lg, 1.125rem);
+  font-weight: 680;
+  color: var(--danger, #b03333);
+}
+
+.unbindIntro {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.unbindList {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2) 0;
+  display: grid;
+  gap: 0.35rem;
+  max-height: 14rem;
+  overflow-y: auto;
+  border-block: 1px solid var(--paper-edge);
+}
+
+.unbindItem {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+}
+
+.unbindItemWord {
+  font-weight: 640;
+}
+
+.unbindItemId {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+
+.unbindItemBounty {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--gold-leaf, #b8902a);
+}
+
+.unbindTotals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--paper);
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-1);
+}
+
+@media (max-width: 560px) {
+  .unbindTotals {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+}
+
+.unbindTotals dt {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+
+.unbindTotals dd {
+  margin: 0.15rem 0 0;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+}
+
+.unbindBountyWarn {
+  display: grid;
+  gap: 0.3rem;
+  padding: var(--space-3);
+  background: rgba(184, 144, 42, 0.1);
+  border: 1px solid var(--gold-leaf, #b8902a);
+  border-radius: var(--radius-1);
+}
+
+.unbindBountyTitle {
+  font-weight: 660;
+  color: var(--gold-leaf, #8a6a1f);
+}
+
+.unbindBountyNote {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.unbindAck {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55em;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.unbindAck input {
+  margin-top: 0.15rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: none;
+  cursor: pointer;
+}
+
+.unbindTypeLabel {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.unbindTypeInput {
+  width: 100%;
+  max-width: 18rem;
+  padding: 0.55em 0.7em;
+  font-size: var(--text-md, 1rem);
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius-1);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.unbindTypeInput:focus-visible {
+  outline: 2px solid var(--danger, #b03333);
+  outline-offset: 1px;
+}
+
+.unbindRow {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.unbindWiring {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+
+.footnote {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  margin-bottom: var(--space-8);
+}
+
+/* Partial-load banner (dashboard couldn't fetch everything from the RPC). */
+.partial {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  background: rgba(176, 122, 39, 0.08);
+  border: 1px solid var(--sepia, #b07a27);
+  border-radius: var(--radius-1);
+  padding: 0.6em 0.9em;
+  margin-bottom: var(--space-4);
+}
+
+.partialRetry {
+  font: inherit;
+  color: var(--ink);
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
