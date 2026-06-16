@@ -87,6 +87,12 @@
   font-size: var(--text-sm);
 }
 
+.fieldHint {
+  color: var(--ink-soft);
+  font-size: var(--text-xs, var(--text-sm));
+  line-height: 1.45;
+}
+
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

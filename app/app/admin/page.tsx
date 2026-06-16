@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { parseEther, isAddress, type Hex } from "viem";
+import { parseEther, formatEther, isAddress, type Hex } from "viem";
 import { useAdminData, type AdminData } from "@/lib/reads/admin";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 import { requireAddress, OUR_ADDRESSES } from "@/lib/contracts/addresses";
@@ -168,32 +168,84 @@ function LaunchPanel({ a, refetch }: { a: AdminData; refetch: () => void }) {
 function SalePanel({ a, account, refetch }: { a: AdminData; account: string; refetch: () => void }) {
   const [early, setEarly] = useState(a.earlyBirdAllocation);
   const [pub, setPub] = useState(a.publicAllocation);
+  // Prices are entered in human-friendly ETH and converted with parseEther on submit.
+  // Prefill from the current on-chain value so re-saving never silently changes an untouched field.
+  const [earlyPrice, setEarlyPrice] = useState(formatEther(a.earlyBirdPriceWei));
+  const [pubPrice, setPubPrice] = useState(formatEther(a.publicPriceWei));
+  const [walletCap, setWalletCap] = useState(a.earlyBirdWalletCap);
   const [mintCount, setMintCount] = useState(1);
   const [mintTo, setMintTo] = useState(account);
   const sum = early + pub + 200;
-  const valid = sum === 10_000;
+  const sumValid = sum === 10_000;
   const reserveLeft = 200 - a.adminMinted;
+
+  // Parse ETH price strings → wei. parseEther throws on unparseable/negative input.
+  // Price 0 is valid (the free-mint / Sepolia path uses 0).
+  function parsePriceWei(eth: string): bigint | null {
+    const t = eth.trim();
+    if (t === "" || t.startsWith("-")) return null;
+    try {
+      return parseEther(t as `${number}`);
+    } catch {
+      return null;
+    }
+  }
+  const earlyPriceWei = parsePriceWei(earlyPrice);
+  const pubPriceWei = parsePriceWei(pubPrice);
+  const pricesValid = earlyPriceWei !== null && pubPriceWei !== null;
+  const capValid = Number.isInteger(walletCap) && walletCap >= 0;
+
+  // setSaleConfig only succeeds in Setup (0) or Between (2); the contract reverts otherwise.
+  const phaseAllowsConfig = a.phase === 0 || a.phase === 2;
+  const configValid = sumValid && pricesValid && capValid && phaseAllowsConfig;
+  const configHint = !phaseAllowsConfig
+    ? `Sale config is locked while a sale phase is open (current: ${PHASE_NAMES[a.phase]}). Close the sale to a Setup/Between phase first.`
+    : !sumValid
+      ? "Allocations must total 10,000."
+      : !pricesValid
+        ? "Enter valid ETH prices (0 is allowed; no negative values)."
+        : !capValid
+          ? "Early-bird wallet cap must be a whole number ≥ 0."
+          : undefined;
 
   return (
     <section id="sale" className={`plate ${styles.panel}`}>
       <PanelHead n="2" title="Sale controls" note="Allocations and prices, tunable between phases. The contract refuses any setup that doesn't add to exactly 10,000." />
       <div className={styles.grid2}>
         <div className={styles.fieldGroup}>
-          <p className="eyebrow">Allocations</p>
-          <label className={styles.field}><span>Early bird</span>
+          <p className="eyebrow">Allocations &amp; prices</p>
+          <label className={styles.field}><span>Early bird (count)</span>
             <input type="number" className="mono" value={early} min={0} max={9800} onChange={(e) => setEarly(Number(e.target.value))} /></label>
-          <label className={styles.field}><span>Public sale</span>
+          <label className={styles.field}><span>Public sale (count)</span>
             <input type="number" className="mono" value={pub} min={0} max={9800} onChange={(e) => setPub(Number(e.target.value))} /></label>
-          <label className={styles.field}><span>Admin reserve</span><input type="number" className="mono" value={200} disabled /></label>
-          <p className={valid ? styles.sumOk : styles.sumBad} role="status">
-            {early.toLocaleString()} + {pub.toLocaleString()} + 200 = {sum.toLocaleString()} {valid ? "✓" : "— must equal 10,000"}
+          <label className={styles.field}><span>Admin reserve (count)</span><input type="number" className="mono" value={200} disabled /></label>
+          <p className={sumValid ? styles.sumOk : styles.sumBad} role="status">
+            {early.toLocaleString()} + {pub.toLocaleString()} + 200 = {sum.toLocaleString()} {sumValid ? "✓" : "— must equal 10,000"}
+          </p>
+          <label className={styles.field}><span>Early-bird price (ETH)</span>
+            <input
+              type="text" inputMode="decimal" className="mono" value={earlyPrice} placeholder="0"
+              aria-invalid={earlyPriceWei === null}
+              onChange={(e) => setEarlyPrice(e.target.value)} /></label>
+          <label className={styles.field}><span>Public price (ETH)</span>
+            <input
+              type="text" inputMode="decimal" className="mono" value={pubPrice} placeholder="0"
+              aria-invalid={pubPriceWei === null}
+              onChange={(e) => setPubPrice(e.target.value)} /></label>
+          <label className={styles.field}><span>Early-bird wallet cap (count)</span>
+            <input
+              type="number" className="mono" value={walletCap} min={0}
+              aria-invalid={!capValid}
+              onChange={(e) => setWalletCap(Number(e.target.value))} /></label>
+          <p className={styles.fieldHint}>
+            A wallet cap of <span className="mono">0</span> blocks all early-bird mints — set it &gt; 0 before opening early bird. Prices are in ETH; 0 is allowed (free / testnet mint).
           </p>
           <TxButton
-            disabled={!valid}
-            disabledHint={!valid ? "Allocations must total 10,000." : undefined}
+            disabled={!configValid}
+            disabledHint={configHint}
             build={() => ({
               address: requireAddress("wordBank"), abi: wordBankAbi, functionName: "setSaleConfig",
-              args: [BigInt(early), BigInt(pub), a.earlyBirdPriceWei, a.publicPriceWei, BigInt(a.earlyBirdWalletCap)],
+              args: [BigInt(early), BigInt(pub), earlyPriceWei!, pubPriceWei!, BigInt(walletCap)],
             })}
             onConfirmed={refetch}
           >
