@@ -70,7 +70,10 @@ export default function TokenPage() {
     );
   }
 
-  const material = MATERIALS[token.material];
+  // Trait tables are only meaningful post-reveal; pre-reveal these stay undefined
+  // so we render the "Unrevealed" placeholder treatment instead of misleading
+  // tier/ink/background derived from default-0 indices.
+  const material = token.revealed ? MATERIALS[token.material] : undefined;
   const tier = material ? TIERS[material.tier] : "";
   const ink = material?.inks[token.ink];
   const background = material?.backgrounds[token.background];
@@ -90,17 +93,30 @@ export default function TokenPage() {
           className={styles.plate}
           style={{ background: token.honors ? undefined : background?.color }}
         >
-          <TokenArt tokenId={token.tokenId} alt={`${token.word} — ${tier} ${material?.name ?? ""}`} />
+          <TokenArt
+            tokenId={token.tokenId}
+            alt={
+              token.revealed
+                ? `${token.word} — ${tier} ${material?.name ?? ""}`
+                : `№${token.tokenId} — unrevealed`
+            }
+          />
         </figure>
 
         {/* ── The record ── */}
         <div className={styles.facts}>
           <p className={`mono ${styles.id}`}>№{token.tokenId}</p>
-          <h1 className={styles.word}>{token.word}</h1>
+          <h1 className={styles.word}>{token.revealed ? token.word : "Unrevealed"}</h1>
           <div className={styles.badges}>
-            {material ? <TierBadge material={token.material} /> : null}
-            {token.honors ? <HonorsBadge /> : null}
-            <span className={styles.cat}>{CATEGORY_LABEL[token.category]}</span>
+            {token.revealed ? (
+              <>
+                {material ? <TierBadge material={token.material} /> : null}
+                {token.honors ? <HonorsBadge /> : null}
+                <span className={styles.cat}>{CATEGORY_LABEL[token.category]}</span>
+              </>
+            ) : (
+              <span className="badge">Reveals at sell-out</span>
+            )}
             {!token.alive ? (
               <span className="badge" style={{ color: "var(--danger)" }}>
                 Unbound — burned
@@ -109,21 +125,30 @@ export default function TokenPage() {
           </div>
 
           <dl className={styles.traits}>
-            <Trait label="Material" value={`${material?.name ?? "—"} · ${tier}`} />
-            <Trait label="Ink" value={ink?.name ?? "—"} swatch={token.honors ? undefined : ink?.color} />
-            <Trait
-              label="Background"
-              value={background?.name ?? "—"}
-              swatch={token.honors ? undefined : background?.color}
-            />
-            <Trait
-              label="Lettering"
-              value={
-                token.honors
-                  ? "Hand-lettered one-of-one (honors)"
-                  : "Fraunces — the collection face"
-              }
-            />
+            {token.revealed ? (
+              <>
+                <Trait label="Material" value={`${material?.name ?? "—"} · ${tier}`} />
+                <Trait label="Ink" value={ink?.name ?? "—"} swatch={token.honors ? undefined : ink?.color} />
+                <Trait
+                  label="Background"
+                  value={background?.name ?? "—"}
+                  swatch={token.honors ? undefined : background?.color}
+                />
+                <Trait
+                  label="Lettering"
+                  value={
+                    token.honors
+                      ? "Hand-lettered one-of-one (honors)"
+                      : "Fraunces — the collection face"
+                  }
+                />
+              </>
+            ) : (
+              <Trait
+                label="Word & traits"
+                value="Unrevealed — assigned at sell-out, then committed against the provenance hash."
+              />
+            )}
             <Trait
               label="Owner"
               value={
@@ -137,9 +162,20 @@ export default function TokenPage() {
           </dl>
 
           <p className={styles.rarityNote}>
-            Visual rarity is aesthetic only. {tier} changes nothing about this
-            word&apos;s bounty odds, fee share, or backing — the game economy is
-            flat across all 10,000 words.
+            {token.revealed ? (
+              <>
+                Visual rarity is aesthetic only. {tier} changes nothing about this
+                word&apos;s bounty odds, fee share, or backing — the game economy
+                is flat across all 10,000 words.
+              </>
+            ) : (
+              <>
+                This token is minted and fully backed. Its word and visual traits
+                are assigned at sell-out and revealed against the provenance hash
+                — rarity is aesthetic only and changes nothing about backing,
+                bounty odds, or fee share.
+              </>
+            )}
           </p>
 
           {token.alive &&
@@ -161,9 +197,20 @@ export default function TokenPage() {
               >
                 Claim {formatEth(token.pendingRewardsWei)} ETH rewards
               </TxButton>
-              <Link href={`/unbind/${token.tokenId}`} className="btn btn--danger">
-                Unbind…
-              </Link>
+              {token.revealed ? (
+                <Link href={`/unbind/${token.tokenId}`} className="btn btn--danger">
+                  Unbind…
+                </Link>
+              ) : (
+                <span
+                  className="btn btn--danger"
+                  aria-disabled="true"
+                  title="Unbinding opens after the reveal — the confirm step types the word, which is assigned at sell-out."
+                  style={{ opacity: 0.5, pointerEvents: "none" }}
+                >
+                  Unbind (after reveal)
+                </span>
+              )}
             </div>
           ) : null}
         </div>

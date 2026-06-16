@@ -27,6 +27,7 @@ const PAGE = 48;
 
 function matchesTier(t: GalleryItem, tier: string): boolean {
   if (tier === "All tiers") return true;
+  if (t.material === undefined) return false; // pre-reveal placeholders have no tier
   return !!MATERIALS[t.material] && TIERS[MATERIALS[t.material].tier] === tier;
 }
 
@@ -50,6 +51,15 @@ export default function GalleryPage() {
   const byId = useGalleryById(trimmed); // self-disables unless numeric
   const honors = useHonorsScan(honorsMode);
 
+  // Reveal state drives whether trait-dependent filters/search work. It comes
+  // from whichever query has loaded data; default to "revealed" (no banner)
+  // until we actually know, so we don't flash the pre-reveal note while loading.
+  const revealed =
+    browse.data?.revealed ??
+    (byId.data ? byId.data.revealed : undefined) ??
+    true;
+  const preReveal = revealed === false;
+
   // Resolve the active result set + status for the current mode.
   let status: string;
   let items: GalleryItem[];
@@ -63,10 +73,12 @@ export default function GalleryPage() {
     items = (honors.data ?? []).filter((t) => matchesTier(t, tier));
   } else {
     status = browse.status;
-    items = (browse.data?.items ?? []).filter(
-      (t) =>
-        (!trimmed || t.word.toLowerCase().includes(trimmed.toLowerCase())) &&
-        matchesTier(t, tier),
+    // Trait-dependent filters (word text, tier) only apply once revealed.
+    items = (browse.data?.items ?? []).filter((t) =>
+      preReveal
+        ? true
+        : (!trimmed || (t.word ?? "").toLowerCase().includes(trimmed.toLowerCase())) &&
+          matchesTier(t, tier),
     );
     total = browse.data?.total ?? null;
     loadedAll = browse.data?.loadedAll ?? true;
@@ -108,19 +120,30 @@ export default function GalleryPage() {
         </form>
       </header>
 
+      {/* Pre-reveal note — words/traits/1-of-1s aren't decided until sellout. */}
+      {preReveal ? (
+        <p className={styles.scanNote}>
+          ✦ Pre-reveal: words, traits, and 1-of-1s reveal at sell-out — until
+          then, browse by token number. Every minted token below is real and
+          shows its pre-reveal placeholder.
+        </p>
+      ) : null}
+
       {/* Filter bar */}
       <div className={styles.filters} role="search">
         <input
           type="search"
           className={styles.search}
-          placeholder="Search by word or token №…"
-          aria-label="Search words or token id"
+          placeholder={preReveal ? "Search by token №…" : "Search by word or token №…"}
+          aria-label={preReveal ? "Search by token id" : "Search words or token id"}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
         <select
           aria-label="Filter by category"
           value={cat}
+          disabled={preReveal}
+          title={preReveal ? "Categories reveal at sell-out" : undefined}
           onChange={(e) => {
             setCat(e.target.value as Category | "ALL");
             setLimit(PAGE);
@@ -132,13 +155,28 @@ export default function GalleryPage() {
             </option>
           ))}
         </select>
-        <select aria-label="Filter by rarity tier" value={tier} onChange={(e) => setTier(e.target.value)}>
+        <select
+          aria-label="Filter by rarity tier"
+          value={tier}
+          disabled={preReveal}
+          title={preReveal ? "Rarity tiers reveal at sell-out" : undefined}
+          onChange={(e) => setTier(e.target.value)}
+        >
           {TIER_FILTERS.map((t) => (
             <option key={t}>{t}</option>
           ))}
         </select>
-        <label className={styles.honorsToggle}>
-          <input type="checkbox" checked={honorsOnly} onChange={(e) => setHonorsOnly(e.target.checked)} />
+        <label
+          className={styles.honorsToggle}
+          title={preReveal ? "1-of-1s reveal at sell-out" : undefined}
+          style={preReveal ? { opacity: 0.5 } : undefined}
+        >
+          <input
+            type="checkbox"
+            checked={honorsOnly}
+            disabled={preReveal}
+            onChange={(e) => setHonorsOnly(e.target.checked)}
+          />
           Honors only
         </label>
       </div>
@@ -170,8 +208,12 @@ export default function GalleryPage() {
         />
       ) : idMode && items.length === 0 ? (
         <EmptyState
-          title={`No word at №${trimmed}`}
-          hint="That token id isn't minted/revealed yet, or the number is out of range (0–9999)."
+          title={`No token at №${trimmed}`}
+          hint={
+            preReveal
+              ? "That token id isn't minted yet, or the number is out of range (0–9999)."
+              : "That token id isn't minted/revealed yet, or the number is out of range (0–9999)."
+          }
         />
       ) : items.length === 0 ? (
         <EmptyState
@@ -190,16 +232,20 @@ export default function GalleryPage() {
                 href={`/gallery/${t.tokenId}`}
                 className={`${styles.card} ${styles.cardLink}`}
               >
-                <TokenArt tokenId={t.tokenId} alt={t.word} />
+                <TokenArt tokenId={t.tokenId} alt={t.revealed ? (t.word ?? `№${t.tokenId}`) : `№${t.tokenId} — unrevealed`} />
                 <div className={styles.cardMeta}>
-                  <span className={styles.cardWord}>{t.word}</span>
+                  <span className={styles.cardWord}>{t.revealed ? t.word : "Unrevealed"}</span>
                   <span className={`mono ${styles.cardId}`}>№{t.tokenId}</span>
                 </div>
-                <div className={styles.cardBadges}>
-                  {MATERIALS[t.material] ? <TierBadge material={t.material} /> : null}
-                  {t.honors ? <HonorsBadge /> : null}
-                  <span className={styles.cardCat}>{CATEGORY_LABEL[t.category]}</span>
-                </div>
+                {t.revealed ? (
+                  <div className={styles.cardBadges}>
+                    {t.material !== undefined && MATERIALS[t.material] ? (
+                      <TierBadge material={t.material} />
+                    ) : null}
+                    {t.honors ? <HonorsBadge /> : null}
+                    {t.category ? <span className={styles.cardCat}>{CATEGORY_LABEL[t.category]}</span> : null}
+                  </div>
+                ) : null}
               </Link>
             ))}
           </div>
