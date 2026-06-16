@@ -42,13 +42,13 @@ describe("chain config (env-driven)", () => {
   });
 });
 
-describe("RPC resolution (wallet → optional public URL → public default)", () => {
+describe("RPC resolution (configured-chain keyless RPC; NEVER the wallet)", () => {
   it("PUBLIC_RPC_URL is undefined when NEXT_PUBLIC_RPC_URL is unset/blank", async () => {
     vi.stubEnv("NEXT_PUBLIC_RPC_URL", "");
     vi.resetModules();
     const chain = await import("@/lib/contracts/chain");
     expect(chain.PUBLIC_RPC_URL).toBeUndefined();
-    // The read client must still build (chain-default public RPC) with no env.
+    // The read client must still build (keyless public fallback) with no env.
     expect(() => chain.getPublicClient()).not.toThrow();
     expect(chain.isUsingWalletRpc()).toBe(false);
   });
@@ -60,20 +60,22 @@ describe("RPC resolution (wallet → optional public URL → public default)", (
     expect(chain.PUBLIC_RPC_URL).toBe("https://example-public-rpc.invalid");
   });
 
-  it("setReadProvider toggles the wallet read path and rebuilds the client", async () => {
+  it("reads NEVER ride the wallet: setReadProvider is a no-op, client is stable", async () => {
     vi.stubEnv("NEXT_PUBLIC_RPC_URL", "");
     vi.resetModules();
     const chain = await import("@/lib/contracts/chain");
     const before = chain.getPublicClient();
     expect(chain.isUsingWalletRpc()).toBe(false);
 
+    // Registering a wallet provider must NOT change the read path.
     const fakeProvider = { request: async () => "0x1" };
     chain.setReadProvider(fakeProvider);
-    expect(chain.isUsingWalletRpc()).toBe(true);
+    expect(chain.isUsingWalletRpc()).toBe(false); // still public-only
     const after = chain.getPublicClient();
-    expect(after).not.toBe(before); // cache invalidated → rebuilt with custom()
+    expect(after).toBe(before); // same singleton — transport unchanged by wallet
 
     chain.setReadProvider(null);
     expect(chain.isUsingWalletRpc()).toBe(false);
+    expect(chain.getPublicClient()).toBe(before);
   });
 });

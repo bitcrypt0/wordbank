@@ -10,12 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  EXPECTED_CHAIN_ID,
-  CHAIN,
-  PUBLIC_RPC_URL,
-  setReadProvider,
-} from "@/lib/contracts/chain";
+import { EXPECTED_CHAIN_ID, CHAIN, PUBLIC_RPC_URL } from "@/lib/contracts/chain";
 import { providerStore } from "./eip6963";
 import {
   forgetConnection,
@@ -102,9 +97,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
     activeProvider.current = null;
     handlers.current = null;
-    // Stop routing chain reads through the (now gone) wallet provider; the read
-    // client falls back to the public endpoint on its next use.
-    setReadProvider(null);
+    // Reads NEVER ride the wallet provider — they always target the configured
+    // chain's keyless RPC (see chain.ts). Nothing to tear down on the read path.
   }, []);
 
   const reset = useCallback(() => {
@@ -160,9 +154,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const cid = await readChainId(detail.provider);
       detach();
       attach(detail.provider);
-      // Route chain reads through the connected wallet's RPC (visitor's own node),
-      // never the owner's. The read client rebuilds on the next read.
-      setReadProvider(detail.provider);
+      // Reads do NOT use the wallet provider — they always hit the configured
+      // chain's keyless RPC (see chain.ts). The wallet is used for WRITES +
+      // network UX (wrongNetwork / switchToMainnet) only.
       setAccount(accounts[0] as `0x${string}`);
       setChainId(cid);
       setProviderInfo(detail.info);
