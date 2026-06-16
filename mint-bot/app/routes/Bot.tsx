@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { ethers, Contract } from 'ethers';
-import { Loader2, Wallet, Send, HardDriveDownload, Play, HardDriveUpload, RefreshCw, StopCircle, Hammer, Settings } from 'lucide-react';
+import { Loader2, Wallet, Send, HardDriveDownload, Play, HardDriveUpload, RefreshCw, Settings, ExternalLink } from 'lucide-react';
 import WordBankArtifact from '../../lib/WordBank.json';
-
-// WordBank SalePhase enum (src/WordBank.sol) — order is ABI-stable.
-const PHASE_LABEL: Record<number, string> = {
-  0: 'Setup',
-  1: 'Early Bird',
-  2: 'Between',
-  3: 'Public Sale',
-};
+import {
+  SalePhase,
+  PHASE_LABEL,
+  selectMintPlan,
+  mintValueWei,
+  earlyBirdCapCheck,
+  fundingCheck,
+} from '../../lib/mint';
 
 interface SaleData {
   phase: number;
@@ -18,13 +18,32 @@ interface SaleData {
   earlyBirdAllocation: number;
   publicMinted: number;
   publicAllocation: number;
-  publicSupply: number; // PUBLIC_SUPPLY (9,800) — the provenance trigger
   earlyBirdPriceEth: string;
+  earlyBirdPriceWei: bigint;
   publicPriceEth: string;
   publicPriceWei: bigint;
+  earlyBirdWalletCap: bigint;
   totalMinted: number;
   maxSupply: number;
   adminMinted: number;
+}
+
+type MintStatus = 'idle' | 'checking' | 'skipped' | 'pending' | 'success' | 'failed';
+
+interface MintResult {
+  address: string;
+  status: MintStatus;
+  txHash?: string;
+  message?: string;
+}
+
+/** Known explorer base URLs keyed by chainId; fallback to Etherscan mainnet. */
+function explorerTxUrl(chainId: number, hash: string): string {
+  const base: Record<number, string> = {
+    1: 'https://etherscan.io',
+    11155111: 'https://sepolia.etherscan.io',
+  };
+  return `${base[chainId] ?? 'https://etherscan.io'}/tx/${hash}`;
 }
 
 export default function Bot() {
@@ -32,21 +51,22 @@ export default function Bot() {
 
   // ── connection ──
   const [rpcUrl, setRpcUrl] = useState('');
+  const [chainId, setChainId] = useState('1');
   const [contractAddress, setContractAddress] = useState('');
   const [primaryPrivateKey, setPrimaryPrivateKey] = useState('');
 
   // ── wallets ──
-  const [walletCount, setWalletCount] = useState(20);
+  const [walletCount, setWalletCount] = useState(5);
   const [fundingAmount, setFundingAmount] = useState('0.05');
   const [generatedWallets, setGeneratedWallets] = useState<Array<{ address: string; privateKey: string }>>([]);
   const [walletBalances, setWalletBalances] = useState<Record<string, string>>({});
   const [importedFileName, setImportedFileName] = useState<string>('');
+  const [pastedKeys, setPastedKeys] = useState('');
 
   // ── mint controls ──
-  const [mintPerTx, setMintPerTx] = useState(100); // NFTs per publicMint() tx (gas-bounded)
-  const [targetMint, setTargetMint] = useState(0); // 0 = mint to public sellout
+  const [nftsPerWallet, setNftsPerWallet] = useState(1); // each wallet mints this many in its ONE tx
 
-  // ── sale admin inputs ──
+  // ── sale admin inputs (secondary) ──
   const [ebAlloc, setEbAlloc] = useState(0);
   const [pubAlloc, setPubAlloc] = useState(9800);
   const [ebPriceEth, setEbPriceEth] = useState('0.01');
@@ -59,30 +79,16 @@ export default function Bot() {
   const [saleData, setSaleData] = useState<SaleData | null>(null);
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isStopping, setIsStopping] = useState(false);
-  const [transactionMode, setTransactionMode] = useState<'ultra-fast' | 'fast'>('fast');
-  const [ultraFastBatchSize, setUltraFastBatchSize] = useState<number>(25);
-  const [fastBatchSize, setFastBatchSize] = useState<number>(10);
-  const [fastBatchDelayMs, setFastBatchDelayMs] = useState<number>(2000);
-  const [initialBackoffMs, setInitialBackoffMs] = useState<number>(2000);
-  const [backoffFactor, setBackoffFactor] = useState<number>(2);
-  const [backoffMaxMs, setBackoffMaxMs] = useState<number>(30000);
-  const [dryRunBeforeWithdraw, setDryRunBeforeWithdraw] = useState<boolean>(true);
+  const [mintResults, setMintResults] = useState<MintResult[]>([]);
 
-  const stopRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ───────────────────────── helpers (preserved from reference) ─────────────────────────
+  // ───────────────────────── helpers ─────────────────────────
   const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
   const addStatus = (m: string) => setStatusLog((p) => [...p, `${new Date().toLocaleTimeString()}: ${m}`]);
   const clearStatusLog = () => setStatusLog([]);
 
-  const isRateLimitError = (error: any): boolean => {
-    const msg = String(error?.message || '').toLowerCase();
-    return msg.includes('rate limit') || msg.includes('too many requests') || msg.includes('429') || error?.code === 'RATE_LIMIT' || error?.code === 'SERVER_ERROR';
-  };
-
-  /** Coerce ws(s) → http(s) for read/broadcast JsonRpcProvider. */
+  /** Coerce ws(s) → http(s) for the JsonRpcProvider. */
   const httpEndpoint = (url: string): string =>
     url.replace('wss://', 'https://').replace('ws://', 'http://').replace('/ws/', '/');
 
@@ -96,99 +102,17 @@ export default function Bot() {
     }
   };
 
-  const sendTxWithRetry = async (
-    signer: ethers.Wallet,
-    tx: any,
-    maxRetries = 5,
-    initialDelayMs = initialBackoffMs,
-    waitForConfirm = false,
-    confirmTimeoutMs = 45000,
-    contextAddress?: string,
-  ): Promise<boolean> => {
-    let attempt = 0;
-    let delay = initialDelayMs;
-    while (attempt <= maxRetries) {
-      if (stopRef.current) return false;
-      try {
-        const resp = await signer.sendTransaction(tx);
-        if (waitForConfirm) {
-          const confirmed = await Promise.race([
-            resp.wait(),
-            new Promise<boolean>((resolve) => setTimeout(() => resolve(false), confirmTimeoutMs)),
-          ]);
-          return confirmed === false ? true : true;
-        }
-        return true;
-      } catch (error: any) {
-        if (isRateLimitError(error)) {
-          await sleep(delay);
-          delay = Math.min(Math.floor(delay * backoffFactor), backoffMaxMs);
-          attempt += 1;
-          continue;
-        }
-        addStatus(`Tx error${contextAddress ? ` from ${contextAddress.slice(0, 8)}…` : ''}: ${error?.shortMessage || error?.message || 'unknown'}`);
-        return false;
-      }
-    }
-    return false;
-  };
-
-  const sendRawWithRetry = async (
-    rawTx: string,
-    provider: ethers.AbstractProvider,
-    maxRetries = 5,
-    initialDelayMs = initialBackoffMs,
-  ): Promise<boolean> => {
-    let attempt = 0;
-    let delay = initialDelayMs;
-    while (attempt <= maxRetries) {
-      if (stopRef.current) return false;
-      try {
-        await (provider as any).broadcastTransaction(rawTx);
-        return true;
-      } catch (error: any) {
-        if (isRateLimitError(error)) {
-          await sleep(delay);
-          delay = Math.min(Math.floor(delay * backoffFactor), backoffMaxMs);
-          attempt += 1;
-          continue;
-        }
-        console.error('broadcast error', error);
-        return false;
-      }
-    }
-    return false;
-  };
-
-  const getBalanceWithRetry = async (provider: ethers.AbstractProvider, address: string, maxRetries = 4, initialDelayMs = 1000): Promise<bigint | null> => {
-    let attempt = 0;
-    let delay = initialDelayMs;
-    while (attempt <= maxRetries) {
-      try {
-        return await provider.getBalance(address);
-      } catch (error: any) {
-        if (isRateLimitError(error)) {
-          await sleep(delay);
-          delay = Math.min(delay * 2, 15000);
-          attempt += 1;
-          continue;
-        }
-        return null;
-      }
-    }
-    return null;
-  };
-
-  /** Premium fee data (reused from reference). */
+  /** Premium fee data (small bump so txs land promptly). */
   const getFees = async (provider: ethers.AbstractProvider) => {
     const feeData = await provider.getFeeData();
     const maxFeePerGas = (feeData.maxFeePerGas || feeData.gasPrice || 0n) * 12n / 10n;
     const priority = (feeData.maxPriorityFeePerGas || 0n) * 15n / 10n;
     const maxPriorityFeePerGas = priority > maxFeePerGas ? maxFeePerGas : priority;
-    return { maxFeePerGas, maxPriorityFeePerGas };
+    const gasPriceForEstimate = maxFeePerGas || feeData.gasPrice || 0n;
+    return { maxFeePerGas, maxPriorityFeePerGas, gasPriceForEstimate };
   };
 
-  // ───────────────────────── wallet management (preserved) ─────────────────────────
+  // ───────────────────────── wallet management ─────────────────────────
   const generateWallets = () => {
     const wallets: Array<{ address: string; privateKey: string }> = [];
     for (let i = 0; i < walletCount; i++) {
@@ -196,6 +120,7 @@ export default function Bot() {
       wallets.push({ address: w.address, privateKey: w.privateKey });
     }
     setGeneratedWallets(wallets);
+    setMintResults([]);
     addStatus(`${walletCount} wallets generated`);
   };
 
@@ -209,8 +134,9 @@ export default function Bot() {
         if (Array.isArray(data) && data.every((it) => it.address && it.privateKey)) {
           setGeneratedWallets(data);
           setImportedFileName(file.name);
+          setMintResults([]);
           addStatus(`${data.length} wallets imported from ${file.name}`);
-        } else addStatus('Error: invalid wallet file format');
+        } else addStatus('Error: invalid wallet file format (expected [{address,privateKey}])');
       } catch {
         addStatus('Error: failed to parse wallet file');
       }
@@ -219,22 +145,42 @@ export default function Bot() {
     reader.readAsText(file);
   };
 
+  /** Import one private key per line (0x… ). Addresses are derived. */
+  const importPastedKeys = () => {
+    const lines = pastedKeys.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (!lines.length) return addStatus('Error: paste at least one private key (one per line)');
+    const wallets: Array<{ address: string; privateKey: string }> = [];
+    for (const line of lines) {
+      try {
+        const w = new ethers.Wallet(line);
+        wallets.push({ address: w.address, privateKey: w.privateKey });
+      } catch {
+        addStatus(`Skipped an invalid key line (not shown for safety)`);
+      }
+    }
+    if (!wallets.length) return addStatus('Error: no valid private keys parsed');
+    setGeneratedWallets(wallets);
+    setImportedFileName('(pasted keys)');
+    setPastedKeys('');
+    setMintResults([]);
+    addStatus(`${wallets.length} wallets imported from pasted keys`);
+  };
+
   const exportPrivateKeys = () => {
-    const data = JSON.stringify(generatedWallets);
+    const data = JSON.stringify(generatedWallets, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'wallets.json';
     a.click();
-    addStatus('Wallet keys exported (keep this file local + secret)');
+    addStatus('Wallet keys exported (keep this file LOCAL + SECRET; delete after use)');
   };
-
-  const handleImportExport = () => (generatedWallets.length > 0 ? exportPrivateKeys() : fileInputRef.current?.click());
 
   const resetWallets = () => {
     setGeneratedWallets([]);
     setImportedFileName('');
+    setMintResults([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
     addStatus('Wallet list reset');
   };
@@ -243,129 +189,104 @@ export default function Bot() {
     if (!generatedWallets.length) return;
     const provider = getReadProvider();
     if (!provider) return addStatus('Error: set a valid RPC URL for balances');
-    const batchSize = 50;
-    const addresses = generatedWallets.map((w) => w.address);
     const next: Record<string, string> = {};
-    for (let i = 0; i < addresses.length; i += batchSize) {
-      const batch = addresses.slice(i, i + batchSize);
-      const results = await Promise.all(batch.map((a) => getBalanceWithRetry(provider, a)));
-      results.forEach((bal, idx) => {
-        next[batch[idx]] = bal !== null ? `${Number(ethers.formatEther(bal)).toFixed(5)} ETH` : 'N/A';
-      });
-      await sleep(300);
-    }
+    await Promise.all(
+      generatedWallets.map(async (w) => {
+        try {
+          const bal = await provider.getBalance(w.address);
+          next[w.address] = `${Number(ethers.formatEther(bal)).toFixed(5)} ETH`;
+        } catch {
+          next[w.address] = 'N/A';
+        }
+      }),
+    );
     setWalletBalances(next);
   };
 
+  /** Optional helper: fund each wallet from the primary key (simple parallel sends, no batching loop). */
   const fundWallets = async () => {
-    if (!primaryPrivateKey) return addStatus('Error: primary private key required');
+    if (!primaryPrivateKey) return addStatus('Error: primary private key required to fund');
     if (!generatedWallets.length) return addStatus('Error: generate/import wallets first');
     try {
       setIsProcessing(true);
-      stopRef.current = false;
       const provider = getReadProvider();
       if (!provider) return addStatus('Error: invalid RPC URL');
       const funder = new ethers.Wallet(primaryPrivateKey, provider);
       const amount = ethers.parseEther(fundingAmount);
-      const chainId = (await provider.getNetwork()).chainId;
+      const net = await provider.getNetwork();
       const { maxFeePerGas, maxPriorityFeePerGas } = await getFees(provider);
       const baseNonce = await provider.getTransactionCount(funder.address, 'pending');
       addStatus(`Funding ${generatedWallets.length} wallets with ${fundingAmount} ETH each…`);
-      const raw = await Promise.all(
-        generatedWallets.map((w, index) =>
-          funder.signTransaction({ to: w.address, value: amount, chainId, maxFeePerGas, maxPriorityFeePerGas, gasLimit: 21000, nonce: baseNonce + index }),
+      const results = await Promise.allSettled(
+        generatedWallets.map((w, i) =>
+          funder.sendTransaction({
+            to: w.address, value: amount, chainId: net.chainId,
+            maxFeePerGas, maxPriorityFeePerGas, gasLimit: 21000, nonce: baseNonce + i,
+          }),
         ),
       );
-      const ok = await broadcastRawBatched(raw, provider);
-      addStatus(`Funding done: ${ok}/${generatedWallets.length} broadcast`);
+      const ok = results.filter((r) => r.status === 'fulfilled').length;
+      addStatus(`Funding broadcast: ${ok}/${generatedWallets.length}`);
+      await sleep(3000);
       await fetchWalletBalances();
     } catch (e: any) {
-      addStatus(`Funding error: ${e?.message || e}`);
+      addStatus(`Funding error: ${e?.shortMessage || e?.message || e}`);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const broadcastRawBatched = async (raw: string[], provider: ethers.AbstractProvider): Promise<number> => {
-    const batchSize = transactionMode === 'ultra-fast' ? ultraFastBatchSize : fastBatchSize;
-    let ok = 0;
-    for (let i = 0; i < raw.length; i += batchSize) {
-      if (stopRef.current) break;
-      const batch = raw.slice(i, i + batchSize);
-      const results = await Promise.allSettled(batch.map((r) => sendRawWithRetry(r, provider)));
-      ok += results.filter((r) => r.status === 'fulfilled' && r.value).length;
-      if (i + batchSize < raw.length) await sleep(fastBatchDelayMs);
-    }
-    return ok;
-  };
-
-  const withdrawAllToPrimary = async () => {
-    if (!primaryPrivateKey) return addStatus('Error: primary private key required');
+  /** Optional helper: sweep leftover ETH back to the primary (simple parallel sends). */
+  const sweepAllToPrimary = async () => {
+    if (!primaryPrivateKey) return addStatus('Error: primary private key required to sweep');
     if (!generatedWallets.length) return addStatus('Error: no wallets to sweep');
     try {
       setIsProcessing(true);
-      stopRef.current = false;
       const provider = getReadProvider();
       if (!provider) return addStatus('Error: invalid RPC URL');
       const destination = new ethers.Wallet(primaryPrivateKey).address;
-      const network = await provider.getNetwork();
-      const chainId = network.chainId;
+      const net = await provider.getNetwork();
       const feeData = await provider.getFeeData();
       const eip1559 = !!feeData.maxFeePerGas && !!feeData.maxPriorityFeePerGas;
       const effectiveFee = eip1559 ? (feeData.maxFeePerGas as bigint) : (feeData.gasPrice || 0n);
       addStatus(`Sweeping leftover ETH back to ${destination.slice(0, 10)}…`);
-
-      const txs: Array<{ signer: ethers.Wallet; tx: any; from: string }> = [];
-      for (const w of generatedWallets) {
-        if (stopRef.current) break;
-        const bal = await getBalanceWithRetry(provider, w.address);
-        if (!bal || bal <= 0n) continue;
-        const gasLimit = 21000n;
-        const gasCost = gasLimit * (effectiveFee || 0n) + 1000n;
-        const value = bal > gasCost ? bal - gasCost : 0n;
-        if (value <= 0n) continue;
-        const signer = new ethers.Wallet(w.privateKey, provider);
-        const nonce = await provider.getTransactionCount(w.address, 'latest');
-        const tx: any = { to: destination, value, chainId, gasLimit: Number(gasLimit), nonce };
-        if (eip1559) {
-          tx.maxFeePerGas = feeData.maxFeePerGas;
-          tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
-        } else tx.gasPrice = effectiveFee;
-        txs.push({ signer, tx, from: w.address });
-      }
-
-      if (dryRunBeforeWithdraw) {
-        addStatus(`Dry run: ${txs.length} wallets will sweep`);
-        for (const { tx, from } of txs) addStatus(`  ${from.slice(0, 10)}… → ${Number(ethers.formatEther(tx.value)).toFixed(5)} ETH`);
-      }
-
-      const batchSize = transactionMode === 'ultra-fast' ? ultraFastBatchSize : fastBatchSize;
-      let ok = 0;
-      for (let i = 0; i < txs.length; i += batchSize) {
-        if (stopRef.current) break;
-        const batch = txs.slice(i, i + batchSize);
-        const results = await Promise.allSettled(batch.map(({ signer, tx, from }) => sendTxWithRetry(signer, tx, 5, initialBackoffMs, false, 45000, from)));
-        ok += results.filter((r) => r.status === 'fulfilled' && r.value).length;
-        if (i + batchSize < txs.length) await sleep(fastBatchDelayMs);
-      }
-      addStatus(`Sweep done: ${ok}/${txs.length} broadcast`);
+      const sends = await Promise.allSettled(
+        generatedWallets.map(async (w) => {
+          const bal = await provider.getBalance(w.address);
+          if (bal <= 0n) return;
+          const gasLimit = 21000n;
+          const gasCost = gasLimit * (effectiveFee || 0n) + 1000n;
+          const value = bal > gasCost ? bal - gasCost : 0n;
+          if (value <= 0n) return;
+          const signer = new ethers.Wallet(w.privateKey, provider);
+          const nonce = await provider.getTransactionCount(w.address, 'latest');
+          const tx: any = { to: destination, value, chainId: net.chainId, gasLimit: Number(gasLimit), nonce };
+          if (eip1559) { tx.maxFeePerGas = feeData.maxFeePerGas; tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas; }
+          else tx.gasPrice = effectiveFee;
+          return signer.sendTransaction(tx);
+        }),
+      );
+      const ok = sends.filter((r) => r.status === 'fulfilled' && r.value).length;
+      addStatus(`Sweep broadcast: ${ok} wallets`);
+      await sleep(3000);
       await fetchWalletBalances();
     } catch (e: any) {
-      addStatus(`Sweep error: ${e?.message || e}`);
+      addStatus(`Sweep error: ${e?.shortMessage || e?.message || e}`);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // ───────────────────────── sale dashboard ─────────────────────────
+  // ───────────────────────── sale dashboard (read-only) ─────────────────────────
   const refreshSale = async () => {
     if (!contractAddress || !rpcUrl) return;
     try {
       const provider = getReadProvider();
       if (!provider) return;
       const c = new Contract(contractAddress, wordBankAbi, provider) as any;
-      const [phase, ebMinted, ebAllocOnchain, pubMinted, pubAllocOnchain, pubSupply, ebPrice, pubPrice, totalMinted, maxSupply, adminMinted] = await Promise.all([
-        c.phase(), c.earlyBirdMinted(), c.earlyBirdAllocation(), c.publicMinted(), c.publicAllocation(), c.PUBLIC_SUPPLY(), c.earlyBirdPrice(), c.publicPrice(), c.totalMinted(), c.MAX_SUPPLY(), c.adminMinted(),
+      const [phase, ebMinted, ebAllocOnchain, pubMinted, pubAllocOnchain, ebPrice, pubPrice, ebCap, totalMinted, maxSupply, adminMinted] = await Promise.all([
+        c.phase(), c.earlyBirdMinted(), c.earlyBirdAllocation(), c.publicMinted(), c.publicAllocation(),
+        c.earlyBirdPrice(), c.publicPrice(), c.earlyBirdWalletCap(), c.totalMinted(), c.MAX_SUPPLY(), c.adminMinted(),
       ]);
       setSaleData({
         phase: Number(phase),
@@ -374,28 +295,28 @@ export default function Bot() {
         earlyBirdAllocation: Number(ebAllocOnchain),
         publicMinted: Number(pubMinted),
         publicAllocation: Number(pubAllocOnchain),
-        publicSupply: Number(pubSupply),
         earlyBirdPriceEth: ethers.formatEther(ebPrice),
+        earlyBirdPriceWei: ebPrice as bigint,
         publicPriceEth: ethers.formatEther(pubPrice),
         publicPriceWei: pubPrice as bigint,
+        earlyBirdWalletCap: ebCap as bigint,
         totalMinted: Number(totalMinted),
         maxSupply: Number(maxSupply),
         adminMinted: Number(adminMinted),
       });
     } catch (e: any) {
-      // Quietly ignore transient read errors; surfaced only on demand.
       console.error('sale read error', e);
     }
   };
 
   useEffect(() => {
     refreshSale();
-    const id = setInterval(refreshSale, 8000);
+    const id = setInterval(refreshSale, 12000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractAddress, rpcUrl]);
 
-  // ───────────────────────── sale admin (owner = primary key) ─────────────────────────
+  // ───────────────────────── sale admin (owner = primary key) — secondary ─────────────────────────
   const ownerTx = async (label: string, build: (c: any) => Promise<any>) => {
     if (!primaryPrivateKey || !contractAddress) return addStatus('Error: primary key + contract address required');
     try {
@@ -426,109 +347,136 @@ export default function Bot() {
   const doAdminMint = () =>
     ownerTx('adminMint', (c) => c.adminMint(BigInt(adminMintCount), adminMintTo || new ethers.Wallet(primaryPrivateKey).address));
 
-  // ───────────────────────── mass mint (publicMint batches across wallets) ─────────────────────────
-  const massMintPublic = async () => {
+  // ───────────────────────── THE MINT: one tx per imported wallet, all fired together ─────────────────────────
+  const mintFromAllWallets = async () => {
     if (!contractAddress) return addStatus('Error: WordBank address required');
-    if (!generatedWallets.length) return addStatus('Error: fund some wallets first');
+    if (!generatedWallets.length) return addStatus('Error: import/generate wallets first');
+    const count = nftsPerWallet;
+    if (!Number.isInteger(count) || count <= 0) return addStatus('Error: NFTs per wallet must be a positive integer');
+
+    setIsProcessing(true);
     try {
-      setIsProcessing(true);
-      stopRef.current = false;
       const provider = getReadProvider();
-      if (!provider) return addStatus('Error: invalid RPC URL');
+      if (!provider) { addStatus('Error: invalid RPC URL'); return; }
+
+      // 1) Read live phase + prices from the contract.
       const readC = new Contract(contractAddress, wordBankAbi, provider) as any;
-      const [phase, pubPrice, pubMinted, pubAlloc] = await Promise.all([readC.phase(), readC.publicPrice(), readC.publicMinted(), readC.publicAllocation()]);
-      if (Number(phase) !== 3) return addStatus('Error: not in Public Sale phase — open the public sale first');
+      const [phaseRaw, ebPrice, pubPrice, ebCap] = await Promise.all([
+        readC.phase(), readC.earlyBirdPrice(), readC.publicPrice(), readC.earlyBirdWalletCap(),
+      ]);
+      const phase = Number(phaseRaw);
 
-      const allocLeft = Number(pubAlloc) - Number(pubMinted);
-      const want = targetMint > 0 ? Math.min(targetMint, allocLeft) : allocLeft;
-      if (want <= 0) return addStatus('Nothing to mint — public allocation already minted out');
-
-      // Split into chunks of mintPerTx.
-      const chunks: number[] = [];
-      let left = want;
-      while (left > 0) {
-        const n = Math.min(mintPerTx, left);
-        chunks.push(n);
-        left -= n;
+      // 2) Phase-aware function + unit price selection (PURE logic, unit-tested).
+      const plan = selectMintPlan(phase, ebPrice as bigint, pubPrice as bigint);
+      if (!plan.mintable || !plan.fn || plan.unitPriceWei === undefined) {
+        addStatus(`Mint disabled: ${plan.reason ?? 'phase does not allow minting'}`);
+        return;
       }
-      addStatus(`Minting ${want} NFTs via publicMint in ${chunks.length} txs (${mintPerTx}/tx) across ${generatedWallets.length} wallets…`);
+      const unitPriceWei = plan.unitPriceWei;
+      const mintFn = plan.fn; // narrowed non-undefined; safe to use in async closures
+      const valueWei = mintValueWei(unitPriceWei, count); // exact msg.value = price × count
+      addStatus(
+        `Phase ${PHASE_LABEL[phase]} → ${mintFn}(${count}); value/tx = ${ethers.formatEther(valueWei)} ETH ` +
+        `(${ethers.formatEther(unitPriceWei)} × ${count}) across ${generatedWallets.length} wallets.`,
+      );
 
-      const chainId = (await provider.getNetwork()).chainId;
-      const { maxFeePerGas, maxPriorityFeePerGas } = await getFees(provider);
+      const net = await provider.getNetwork();
+      const onchainChainId = Number(net.chainId);
+      const { maxFeePerGas, maxPriorityFeePerGas, gasPriceForEstimate } = await getFees(provider);
 
-      // Per-wallet nonce tracking (a wallet may send several txs).
-      const nonceMap = new Map<string, number>();
-      const gasCache = new Map<number, bigint>(); // count → gasLimit
+      // 3) Pre-flight each wallet: early-bird cap (EB only) + balance >= value + gas.
+      //    Build the list of wallets cleared to mint; flag/skip the rest.
+      setMintResults(generatedWallets.map((w) => ({ address: w.address, status: 'checking' as MintStatus })));
 
-      const estimateGasFor = async (signer: ethers.Wallet, count: number): Promise<bigint> => {
-        if (gasCache.has(count)) return gasCache.get(count)!;
-        let gas: bigint;
-        try {
-          const c = new Contract(contractAddress, wordBankAbi, signer) as any;
-          const est: bigint = await c.publicMint.estimateGas(count, { value: (pubPrice as bigint) * BigInt(count) });
-          gas = (est * 12n) / 10n; // +20% headroom
-        } catch {
-          gas = BigInt(count) * 320000n + 200000n; // conservative fallback
+      // Estimate gas once from the first wallet (same calldata shape for all).
+      let gasLimit: bigint;
+      try {
+        const firstSigner = new ethers.Wallet(generatedWallets[0].privateKey, provider);
+        const cFirst = new Contract(contractAddress, wordBankAbi, firstSigner) as any;
+        const est: bigint = await cFirst[mintFn].estimateGas(count, { value: valueWei });
+        gasLimit = (est * 13n) / 10n; // +30% headroom
+      } catch {
+        gasLimit = BigInt(count) * 320000n + 200000n; // conservative fallback
+      }
+
+      const cleared: Array<{ w: { address: string; privateKey: string } }> = [];
+      const nextResults: MintResult[] = [];
+      for (const w of generatedWallets) {
+        // Early-bird per-wallet cap (only relevant in EarlyBird phase).
+        if (phase === SalePhase.EarlyBird) {
+          let already: bigint = 0n;
+          try { already = await readC.earlyBirdMintedBy(w.address); } catch { /* default 0 */ }
+          const cap = earlyBirdCapCheck(ebCap as bigint, already, count);
+          if (!cap.ok) {
+            nextResults.push({ address: w.address, status: 'skipped', message: cap.reason });
+            continue;
+          }
         }
-        gasCache.set(count, gas);
-        return gas;
-      };
-
-      // Build all populated txs with explicit per-wallet nonces.
-      const built: Array<{ signer: ethers.Wallet; tx: any; from: string; count: number }> = [];
-      for (let i = 0; i < chunks.length; i++) {
-        const w = generatedWallets[i % generatedWallets.length];
-        const signer = new ethers.Wallet(w.privateKey, provider);
-        if (!nonceMap.has(w.address)) nonceMap.set(w.address, await provider.getTransactionCount(w.address, 'pending'));
-        const nonce = nonceMap.get(w.address)!;
-        nonceMap.set(w.address, nonce + 1);
-        const count = chunks[i];
-        const gasLimit = await estimateGasFor(signer, count);
-        const c = new Contract(contractAddress, wordBankAbi, signer) as any;
-        const tx = await c.publicMint.populateTransaction(count, {
-          value: (pubPrice as bigint) * BigInt(count),
-          nonce, gasLimit, maxFeePerGas, maxPriorityFeePerGas, chainId,
-        });
-        built.push({ signer, tx, from: w.address, count });
-      }
-
-      // Broadcast in batches. waitForConfirm so progress + nonce ordering hold.
-      const batchSize = transactionMode === 'ultra-fast' ? ultraFastBatchSize : fastBatchSize;
-      let ok = 0;
-      let mintedSoFar = 0;
-      for (let i = 0; i < built.length; i += batchSize) {
-        if (stopRef.current) {
-          addStatus('Stopped by user.');
-          break;
+        // Balance >= value + estimated gas (with pad).
+        const bal = await provider.getBalance(w.address);
+        const fund = fundingCheck({ balanceWei: bal, valueWei, gasLimit, gasPriceWei: gasPriceForEstimate });
+        if (!fund.ok) {
+          nextResults.push({
+            address: w.address,
+            status: 'skipped',
+            message: `Underfunded: needs ~${ethers.formatEther(fund.requiredWei)} ETH, short ${ethers.formatEther(fund.shortfallWei)} ETH.`,
+          });
+          continue;
         }
-        const batch = built.slice(i, i + batchSize);
-        const results = await Promise.allSettled(
-          batch.map(({ signer, tx, from }) => sendTxWithRetry(signer, tx, 5, initialBackoffMs, true, 60000, from)),
-        );
-        const good = results.filter((r) => r.status === 'fulfilled' && r.value);
-        ok += good.length;
-        mintedSoFar += batch.reduce((s, b, idx) => (results[idx].status === 'fulfilled' && (results[idx] as PromiseFulfilledResult<boolean>).value ? s + b.count : s), 0);
-        addStatus(`Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(built.length / batchSize)}: ${good.length}/${batch.length} txs ok (~${mintedSoFar} NFTs)`);
-        await refreshSale();
-        if (i + batchSize < built.length) await sleep(fastBatchDelayMs);
+        cleared.push({ w });
+        nextResults.push({ address: w.address, status: 'pending' });
       }
-      addStatus(`Mass mint complete: ${ok}/${built.length} txs broadcast (~${mintedSoFar} NFTs).`);
+      setMintResults(nextResults);
+
+      const skipped = nextResults.filter((r) => r.status === 'skipped').length;
+      if (!cleared.length) {
+        addStatus(`No wallets cleared to mint (${skipped} skipped/flagged). Fund the wallets or adjust the count.`);
+        return;
+      }
+      addStatus(`${cleared.length} wallets cleared, ${skipped} skipped. Firing one ${plan.fn}(${count}) tx per wallet…`);
+
+      // 4) Fire ONE tx per cleared wallet, ALL together. Each wallet is its own
+      //    signer with its own nonce, so there is no cross-wallet nonce
+      //    contention — Promise.allSettled lets every wallet succeed/fail
+      //    independently (one wallet's revert never blocks the others).
+      const updateResult = (address: string, patch: Partial<MintResult>) =>
+        setMintResults((prev) => prev.map((r) => (r.address === address ? { ...r, ...patch } : r)));
+
+      await Promise.allSettled(
+        cleared.map(async ({ w }) => {
+          try {
+            const signer = new ethers.Wallet(w.privateKey, provider);
+            const c = new Contract(contractAddress, wordBankAbi, signer) as any;
+            const nonce = await provider.getTransactionCount(w.address, 'pending');
+            const tx = await c[mintFn](count, {
+              value: valueWei, nonce, gasLimit, maxFeePerGas, maxPriorityFeePerGas, chainId: net.chainId,
+            });
+            updateResult(w.address, { status: 'pending', txHash: tx.hash, message: 'broadcast — waiting for confirmation' });
+            const receipt = await tx.wait();
+            if (receipt && receipt.status === 1) {
+              updateResult(w.address, { status: 'success', txHash: tx.hash, message: `minted ${count}` });
+            } else {
+              updateResult(w.address, { status: 'failed', txHash: tx.hash, message: 'tx reverted' });
+            }
+          } catch (e: any) {
+            updateResult(w.address, {
+              status: 'failed',
+              message: e?.shortMessage || e?.reason || e?.message || 'mint failed',
+            });
+          }
+        }),
+      );
+
+      addStatus('Mint round complete — see per-wallet results.');
       await refreshSale();
+      await fetchWalletBalances();
+      // Re-bind explorer chainId for links from the actually-connected network.
+      setChainId(String(onchainChainId));
     } catch (e: any) {
-      addStatus(`Mass mint error: ${e?.shortMessage || e?.message || e}`);
+      addStatus(`Mint error: ${e?.shortMessage || e?.message || e}`);
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const stopOperations = () => {
-    setIsStopping(true);
-    stopRef.current = true;
-    addStatus('Stopping after the current batch…');
-    setTimeout(() => {
-      setIsStopping(false);
-      setIsProcessing(false);
-    }, 500);
   };
 
   useEffect(() => {
@@ -537,9 +485,15 @@ export default function Bot() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generatedWallets, rpcUrl]);
 
-  // % toward the 9,800 provenance trigger.
-  const publicSold = saleData ? saleData.earlyBirdMinted + saleData.publicMinted : 0;
-  const pctToReveal = saleData && saleData.publicSupply > 0 ? Math.min(100, (publicSold / saleData.publicSupply) * 100) : 0;
+  // Live preview of the mint plan for the operator (read-only, from dashboard reads).
+  const previewPlan = saleData
+    ? selectMintPlan(saleData.phase, saleData.earlyBirdPriceWei, saleData.publicPriceWei)
+    : null;
+  const previewValueEth = saleData && previewPlan?.mintable && previewPlan.unitPriceWei !== undefined && nftsPerWallet > 0
+    ? ethers.formatEther(previewPlan.unitPriceWei * BigInt(nftsPerWallet))
+    : null;
+
+  const explorerChainId = Number(chainId) || 1;
 
   const input = 'w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500';
   const card = 'bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20';
@@ -550,7 +504,13 @@ export default function Bot() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">WORDBANK Mint Bot</h1>
-          <p className="text-blue-200">Owner-run rehearsal tool — drive the sale to the 9,800 public sellout.</p>
+          <p className="text-blue-200">Mainnet multi-wallet mint — one mint transaction per imported wallet, fired together. Works in early-bird and public phases.</p>
+        </div>
+
+        {/* Mainnet safety banner */}
+        <div className="bg-amber-500/10 border border-amber-400/40 rounded-xl p-4 mb-6 text-amber-100 text-sm">
+          <strong>Mainnet — real ETH.</strong> Do a live smoke test with ONE wallet + count 1 first, confirm it mints, THEN import the rest.
+          Keys stay in your browser; never commit <code>wallets*.json</code>. Send the exact on-chain price; underfunded wallets are skipped, not reverted.
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -559,21 +519,27 @@ export default function Bot() {
             <h2 className="text-xl font-semibold text-white mb-4">Connection</h2>
             <div className="space-y-4">
               <div>
-                <label className={label}>RPC URL (http/ws — Sepolia / local fork / mainnet)</label>
-                <input className={input} value={rpcUrl} onChange={(e) => setRpcUrl(e.target.value)} placeholder="http://127.0.0.1:8545" />
+                <label className={label}>RPC URL (mainnet = your mainnet RPC)</label>
+                <input className={input} value={rpcUrl} onChange={(e) => setRpcUrl(e.target.value)} placeholder="https://… (mainnet)" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className={label}>Chain ID</label>
+                  <input className={input} value={chainId} onChange={(e) => setChainId(e.target.value)} placeholder="1" />
+                </div>
+                <div className="col-span-2">
+                  <label className={label}>WordBank address</label>
+                  <input className={input} value={contractAddress} onChange={(e) => setContractAddress(e.target.value)} placeholder="0x63a9…1218" />
+                </div>
               </div>
               <div>
-                <label className={label}>WordBank contract address</label>
-                <input className={input} value={contractAddress} onChange={(e) => setContractAddress(e.target.value)} placeholder="0x…" />
-              </div>
-              <div>
-                <label className={label}>Primary private key (funder + owner) — stays in your browser</label>
-                <input type="password" className={input} value={primaryPrivateKey} onChange={(e) => setPrimaryPrivateKey(e.target.value)} placeholder="0x…" />
+                <label className={label}>Primary private key (only for fund/sweep/admin — NOT needed to mint) — stays in your browser</label>
+                <input type="password" className={input} value={primaryPrivateKey} onChange={(e) => setPrimaryPrivateKey(e.target.value)} placeholder="0x… (optional)" />
               </div>
             </div>
           </div>
 
-          {/* Sale dashboard */}
+          {/* Sale dashboard (read-only) */}
           <div className={card}>
             <h2 className="text-xl font-semibold text-white mb-4">Sale dashboard</h2>
             {!saleData ? (
@@ -581,21 +547,12 @@ export default function Bot() {
             ) : (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <Stat label="Phase" value={saleData.phaseLabel} highlight={saleData.phase === 3} />
-                  <Stat label="Public price" value={`${saleData.publicPriceEth} ETH`} />
+                  <Stat label="Phase" value={saleData.phaseLabel} highlight={saleData.phase === SalePhase.EarlyBird || saleData.phase === SalePhase.PublicSale} />
+                  <Stat label={saleData.phase === SalePhase.EarlyBird ? 'Early-bird price' : 'Public price'} value={`${saleData.phase === SalePhase.EarlyBird ? saleData.earlyBirdPriceEth : saleData.publicPriceEth} ETH`} />
                   <Stat label="Early bird" value={`${saleData.earlyBirdMinted} / ${saleData.earlyBirdAllocation}`} />
                   <Stat label="Public" value={`${saleData.publicMinted} / ${saleData.publicAllocation}`} />
                   <Stat label="Total minted" value={`${saleData.totalMinted} / ${saleData.maxSupply}`} />
-                  <Stat label="Admin reserve" value={`${saleData.adminMinted} / 200`} />
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs text-blue-200 mb-1">
-                    <span>Toward the 9,800 reveal trigger</span>
-                    <span className="font-mono">{publicSold} / {saleData.publicSupply} ({pctToReveal.toFixed(1)}%)</span>
-                  </div>
-                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-amber-400" style={{ width: `${pctToReveal}%` }} />
-                  </div>
+                  <Stat label="EB wallet cap" value={saleData.earlyBirdWalletCap.toString()} />
                 </div>
                 <button onClick={refreshSale} className="text-blue-300 hover:text-blue-200 text-sm flex items-center gap-2">
                   <RefreshCw className="w-4 h-4" /> Refresh
@@ -604,96 +561,133 @@ export default function Bot() {
             )}
           </div>
 
-          {/* Sale admin */}
+          {/* Wallets — import is primary */}
           <div className={card}>
-            <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2"><Settings className="w-5 h-5" /> Sale admin (owner)</h2>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className={label}>EB allocation</label><input type="number" className={input} value={ebAlloc} onChange={(e) => setEbAlloc(parseInt(e.target.value) || 0)} /></div>
-                <div><label className={label}>Public allocation</label><input type="number" className={input} value={pubAlloc} onChange={(e) => setPubAlloc(parseInt(e.target.value) || 0)} /></div>
-                <div><label className={label}>EB price (ETH)</label><input className={input} value={ebPriceEth} onChange={(e) => setEbPriceEth(e.target.value)} /></div>
-                <div><label className={label}>Public price (ETH)</label><input className={input} value={pubPriceEth} onChange={(e) => setPubPriceEth(e.target.value)} /></div>
-                <div><label className={label}>EB wallet cap</label><input type="number" className={input} value={ebWalletCap} onChange={(e) => setEbWalletCap(parseInt(e.target.value) || 0)} /></div>
-              </div>
-              <p className="text-xs text-blue-300">EB + public + 200 reserve must equal 10,000. Set EB allocation 0 to rehearse the public-only path straight to sellout.</p>
-              <div className="grid grid-cols-2 gap-2">
-                <Btn onClick={doSetSaleConfig} disabled={isProcessing} color="bg-blue-600">Set sale config</Btn>
-                <Btn onClick={doOpenEarlyBird} disabled={isProcessing} color="bg-teal-600">Open early bird</Btn>
-                <Btn onClick={doCloseEarlyBird} disabled={isProcessing} color="bg-stone-600">Close early bird</Btn>
-                <Btn onClick={doOpenPublicSale} disabled={isProcessing} color="bg-indigo-600">Open public sale</Btn>
-              </div>
-              <div className="grid grid-cols-3 gap-2 items-end">
-                <div><label className={label}>Admin mint #</label><input type="number" className={input} value={adminMintCount} onChange={(e) => setAdminMintCount(parseInt(e.target.value) || 1)} /></div>
-                <div className="col-span-2"><label className={label}>to (blank = primary)</label><input className={input} value={adminMintTo} onChange={(e) => setAdminMintTo(e.target.value)} placeholder="0x…" /></div>
-              </div>
-              <Btn onClick={doAdminMint} disabled={isProcessing} color="bg-amber-700">Admin mint (≤200 reserve)</Btn>
-            </div>
-          </div>
-
-          {/* Wallet management */}
-          <div className={card}>
-            <h2 className="text-xl font-semibold text-white mb-4">Wallets</h2>
+            <h2 className="text-xl font-semibold text-white mb-4">Wallets (import to mint from)</h2>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className={label}>Number of wallets</label><input type="number" min={1} max={5000} className={input} value={walletCount} onChange={(e) => setWalletCount(parseInt(e.target.value) || 1)} /></div>
-                <div><label className={label}>Funding each (ETH)</label><input type="number" step="0.001" className={input} value={fundingAmount} onChange={(e) => setFundingAmount(e.target.value)} /></div>
-              </div>
-              {importedFileName && <p className="text-sm text-blue-200">Imported: {importedFileName}</p>}
+              {importedFileName && <p className="text-sm text-blue-200">Loaded: {importedFileName} — {generatedWallets.length} wallets</p>}
               <div className="flex gap-2">
-                <Btn onClick={generateWallets} disabled={isProcessing} color="bg-blue-600" icon={<Wallet className="w-4 h-4" />}>Generate</Btn>
-                <Btn onClick={handleImportExport} disabled={isProcessing} color="bg-purple-600" icon={generatedWallets.length > 0 ? <HardDriveDownload className="w-4 h-4" /> : <HardDriveUpload className="w-4 h-4" />}>{generatedWallets.length > 0 ? 'Export' : 'Import'}</Btn>
+                <Btn onClick={() => fileInputRef.current?.click()} disabled={isProcessing} color="bg-purple-600" icon={<HardDriveUpload className="w-4 h-4" />}>Import JSON</Btn>
+                <Btn onClick={exportPrivateKeys} disabled={isProcessing || !generatedWallets.length} color="bg-purple-800" icon={<HardDriveDownload className="w-4 h-4" />}>Export</Btn>
                 <Btn onClick={resetWallets} disabled={isProcessing} color="bg-gray-700" icon={<RefreshCw className="w-4 h-4" />}>Reset</Btn>
               </div>
               <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileUpload} className="hidden" />
-              <Btn onClick={fundWallets} disabled={isProcessing || !generatedWallets.length || !primaryPrivateKey} color="bg-green-600" icon={isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} full>Fund wallets</Btn>
+              <div>
+                <label className={label}>…or paste private keys (one per line)</label>
+                <textarea className={`${input} font-mono text-xs h-20`} value={pastedKeys} onChange={(e) => setPastedKeys(e.target.value)} placeholder={'0x…\n0x…'} />
+                <Btn onClick={importPastedKeys} disabled={isProcessing || !pastedKeys.trim()} color="bg-purple-600" full>Import pasted keys</Btn>
+              </div>
+              <details className="text-sm text-blue-200">
+                <summary className="cursor-pointer">Generate fresh wallets (secondary)</summary>
+                <div className="mt-3 grid grid-cols-2 gap-3 items-end">
+                  <div><label className={label}>Number</label><input type="number" min={1} max={500} className={input} value={walletCount} onChange={(e) => setWalletCount(parseInt(e.target.value) || 1)} /></div>
+                  <Btn onClick={generateWallets} disabled={isProcessing} color="bg-blue-600" icon={<Wallet className="w-4 h-4" />}>Generate</Btn>
+                </div>
+              </details>
+            </div>
+          </div>
+
+          {/* Optional fund / sweep */}
+          <div className={card}>
+            <h2 className="text-xl font-semibold text-white mb-4">Fund / sweep (optional)</h2>
+            <div className="space-y-4">
+              <p className="text-xs text-blue-300">Uses the primary key above. Simple parallel sends (no batching). Skip these if your wallets are already funded.</p>
+              <div><label className={label}>Funding each (ETH)</label><input type="number" step="0.001" className={input} value={fundingAmount} onChange={(e) => setFundingAmount(e.target.value)} /></div>
+              <div className="flex gap-2">
+                <Btn onClick={fundWallets} disabled={isProcessing || !generatedWallets.length || !primaryPrivateKey} color="bg-green-700" icon={<Send className="w-4 h-4" />} full>Fund wallets</Btn>
+                <Btn onClick={sweepAllToPrimary} disabled={isProcessing || !generatedWallets.length || !primaryPrivateKey} color="bg-red-800" icon={<Send className="w-4 h-4" />} full>Sweep → primary</Btn>
+              </div>
+              <Btn onClick={fetchWalletBalances} disabled={isProcessing || !generatedWallets.length} color="bg-stone-600" icon={<RefreshCw className="w-4 h-4" />} full>Refresh balances</Btn>
             </div>
           </div>
         </div>
 
-        {/* Mass mint */}
+        {/* THE MINT */}
         <div className={`${card} mt-6`}>
-          <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2"><Hammer className="w-5 h-5" /> Mass mint → public sellout</h2>
+          <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2"><Play className="w-5 h-5" /> Mint — one tx per wallet, fired together</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className={label}>NFTs per tx (gas-bounded)</label><input type="number" min={1} max={150} className={input} value={mintPerTx} onChange={(e) => setMintPerTx(parseInt(e.target.value) || 1)} /></div>
-                <div><label className={label}>Target NFTs (0 = to sellout)</label><input type="number" min={0} className={input} value={targetMint} onChange={(e) => setTargetMint(parseInt(e.target.value) || 0)} /></div>
-              </div>
-              <div>
-                <label className={label}>Broadcast mode</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Btn onClick={() => setTransactionMode('fast')} color={transactionMode === 'fast' ? 'bg-blue-600' : 'bg-white/5'}>Fast (batched)</Btn>
-                  <Btn onClick={() => setTransactionMode('ultra-fast')} color={transactionMode === 'ultra-fast' ? 'bg-blue-600' : 'bg-white/5'}>Ultra fast</Btn>
+              <div><label className={label}>NFTs per wallet (each wallet mints this many in its one tx)</label><input type="number" min={1} className={input} value={nftsPerWallet} onChange={(e) => setNftsPerWallet(parseInt(e.target.value) || 1)} /></div>
+              {saleData && (
+                <div className="text-sm text-blue-200 space-y-1">
+                  {previewPlan?.mintable ? (
+                    <>
+                      <div>Live phase: <span className="text-white font-medium">{saleData.phaseLabel}</span> → calls <code className="text-amber-300">{previewPlan.fn}({nftsPerWallet})</code></div>
+                      <div>Exact value per wallet: <span className="text-white font-mono">{previewValueEth} ETH</span></div>
+                      {saleData.phase === SalePhase.EarlyBird && saleData.earlyBirdWalletCap === 0n && (
+                        <div className="text-red-300">Early-bird wallet cap is 0 — all early-bird mints are blocked.</div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-red-300">Mint disabled: {previewPlan?.reason ?? '—'}</div>
+                  )}
                 </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <Adv label="Ultra batch" v={ultraFastBatchSize} set={setUltraFastBatchSize} />
-                <Adv label="Fast batch" v={fastBatchSize} set={setFastBatchSize} />
-                <Adv label="Batch delay ms" v={fastBatchDelayMs} set={setFastBatchDelayMs} />
-                <Adv label="Backoff ms" v={initialBackoffMs} set={setInitialBackoffMs} />
-                <Adv label="Backoff max" v={backoffMaxMs} set={setBackoffMaxMs} />
-              </div>
-            </div>
-            <div className="space-y-4 flex flex-col justify-end">
-              <Btn onClick={massMintPublic} disabled={isProcessing || !generatedWallets.length || !contractAddress} color="bg-orange-600" icon={isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />} full>Mint to public sellout</Btn>
-              {(isProcessing) && (
-                <Btn onClick={stopOperations} disabled={isStopping} color="bg-gray-800" icon={isStopping ? <Loader2 className="w-4 h-4 animate-spin" /> : <StopCircle className="w-4 h-4" />} full>Stop after current batch</Btn>
               )}
-              <p className="text-xs text-blue-300">Each tx sends exactly publicPrice × count (else the contract reverts WrongPayment). Block gas limit caps NFTs/tx — drop the count if a tx runs out of gas.</p>
+              <p className="text-xs text-blue-300">Each wallet sends exactly one mint tx with msg.value = on-chain price × count. Wallets short on funds are skipped (never reverted). Each wallet is its own signer with its own nonce, so all txs fire in parallel without nonce contention.</p>
+            </div>
+            <div className="flex flex-col justify-end">
+              <Btn onClick={mintFromAllWallets} disabled={isProcessing || !generatedWallets.length || !contractAddress || (previewPlan ? !previewPlan.mintable : false)} color="bg-orange-600" icon={isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />} full>
+                {isProcessing ? 'Minting…' : `Mint from ${generatedWallets.length} wallet${generatedWallets.length === 1 ? '' : 's'}`}
+              </Btn>
             </div>
           </div>
+
+          {/* Per-wallet results */}
+          {mintResults.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold text-white mb-2">Per-wallet results</h3>
+              <div className="max-h-72 overflow-y-auto space-y-2">
+                {mintResults.map((r) => (
+                  <div key={r.address} className="bg-white/5 rounded-lg p-3 text-sm flex items-center justify-between gap-3">
+                    <span className="font-mono text-xs text-white break-all">{r.address.slice(0, 10)}…{r.address.slice(-6)}</span>
+                    <span className="flex items-center gap-3 text-xs whitespace-nowrap">
+                      <ResultBadge status={r.status} />
+                      {r.message && <span className="text-blue-200 max-w-[18rem] truncate" title={r.message}>{r.message}</span>}
+                      {r.txHash && (
+                        <a className="text-blue-300 hover:text-blue-200 flex items-center gap-1" href={explorerTxUrl(explorerChainId, r.txHash)} target="_blank" rel="noreferrer">
+                          tx <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Sale admin (secondary) */}
+        <details className={`${card} mt-6`}>
+          <summary className="text-xl font-semibold text-white cursor-pointer flex items-center gap-2"><Settings className="w-5 h-5" /> Sale admin (owner only — secondary)</summary>
+          <div className="space-y-3 mt-4">
+            <p className="text-xs text-blue-300">The dApp admin panel now owns sale configuration. These helpers stay for convenience and use the primary key as the owner.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className={label}>EB allocation</label><input type="number" className={input} value={ebAlloc} onChange={(e) => setEbAlloc(parseInt(e.target.value) || 0)} /></div>
+              <div><label className={label}>Public allocation</label><input type="number" className={input} value={pubAlloc} onChange={(e) => setPubAlloc(parseInt(e.target.value) || 0)} /></div>
+              <div><label className={label}>EB price (ETH)</label><input className={input} value={ebPriceEth} onChange={(e) => setEbPriceEth(e.target.value)} /></div>
+              <div><label className={label}>Public price (ETH)</label><input className={input} value={pubPriceEth} onChange={(e) => setPubPriceEth(e.target.value)} /></div>
+              <div><label className={label}>EB wallet cap</label><input type="number" className={input} value={ebWalletCap} onChange={(e) => setEbWalletCap(parseInt(e.target.value) || 0)} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Btn onClick={doSetSaleConfig} disabled={isProcessing} color="bg-blue-600">Set sale config</Btn>
+              <Btn onClick={doOpenEarlyBird} disabled={isProcessing} color="bg-teal-600">Open early bird</Btn>
+              <Btn onClick={doCloseEarlyBird} disabled={isProcessing} color="bg-stone-600">Close early bird</Btn>
+              <Btn onClick={doOpenPublicSale} disabled={isProcessing} color="bg-indigo-600">Open public sale</Btn>
+            </div>
+            <div className="grid grid-cols-3 gap-2 items-end">
+              <div><label className={label}>Admin mint #</label><input type="number" className={input} value={adminMintCount} onChange={(e) => setAdminMintCount(parseInt(e.target.value) || 1)} /></div>
+              <div className="col-span-2"><label className={label}>to (blank = primary)</label><input className={input} value={adminMintTo} onChange={(e) => setAdminMintTo(e.target.value)} placeholder="0x…" /></div>
+            </div>
+            <Btn onClick={doAdminMint} disabled={isProcessing} color="bg-amber-700">Admin mint (≤200 reserve)</Btn>
+          </div>
+        </details>
 
         {/* Wallet list */}
         {generatedWallets.length > 0 && (
           <div className={`${card} mt-6`}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-white">Wallets ({generatedWallets.length})</h2>
-              <div className="flex items-center gap-3">
-                <button onClick={fetchWalletBalances} disabled={isProcessing} className="text-blue-300 hover:text-blue-200 text-sm flex items-center gap-2"><RefreshCw className="w-4 h-4" /> Balances</button>
-                <label className="flex items-center gap-2 text-xs text-blue-200"><input type="checkbox" checked={dryRunBeforeWithdraw} onChange={(e) => setDryRunBeforeWithdraw(e.target.checked)} /> Dry run sweep</label>
-                <button onClick={withdrawAllToPrimary} disabled={isProcessing || !primaryPrivateKey} className="text-red-300 hover:text-red-200 text-sm flex items-center gap-2"><Send className="w-4 h-4" /> Sweep all → primary</button>
-              </div>
+              <button onClick={fetchWalletBalances} disabled={isProcessing} className="text-blue-300 hover:text-blue-200 text-sm flex items-center gap-2"><RefreshCw className="w-4 h-4" /> Balances</button>
             </div>
             <div className="max-h-40 overflow-y-auto space-y-2">
               {generatedWallets.map((w, i) => (
@@ -730,19 +724,23 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
   );
 }
 
+function ResultBadge({ status }: { status: MintStatus }) {
+  const map: Record<MintStatus, { text: string; cls: string }> = {
+    idle: { text: 'idle', cls: 'bg-white/10 text-gray-300' },
+    checking: { text: 'checking', cls: 'bg-blue-500/20 text-blue-200' },
+    skipped: { text: 'skipped', cls: 'bg-yellow-500/20 text-yellow-200' },
+    pending: { text: 'pending', cls: 'bg-blue-500/20 text-blue-200' },
+    success: { text: 'success', cls: 'bg-green-500/20 text-green-300' },
+    failed: { text: 'failed', cls: 'bg-red-500/20 text-red-300' },
+  };
+  const m = map[status];
+  return <span className={`px-2 py-0.5 rounded ${m.cls}`}>{m.text}</span>;
+}
+
 function Btn({ onClick, disabled, color, icon, children, full }: { onClick: () => void; disabled?: boolean; color: string; icon?: React.ReactNode; children: React.ReactNode; full?: boolean }) {
   return (
     <button onClick={onClick} disabled={disabled} className={`${color} hover:opacity-90 disabled:bg-gray-600 disabled:opacity-100 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm ${full ? 'w-full' : 'flex-1'}`}>
       {icon}{children}
     </button>
-  );
-}
-
-function Adv({ label, v, set }: { label: string; v: number; set: (n: number) => void }) {
-  return (
-    <div>
-      <label className="block text-xs text-blue-200 mb-1">{label}</label>
-      <input type="number" min={0} value={v} onChange={(e) => set(parseInt(e.target.value) || 0)} className="w-full px-2 py-1 bg-white/5 border border-white/20 rounded-lg text-white text-xs" />
-    </div>
   );
 }

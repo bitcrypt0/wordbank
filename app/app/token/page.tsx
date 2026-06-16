@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { parseEther } from "viem";
 import { useBurnData, useRoyaltyTotals } from "@/lib/reads/token";
 import { requireAddress } from "@/lib/contracts/addresses";
 import { burnEngineAbi, feeHookAbi, royaltySplitterAbi } from "@/lib/contracts/abis";
@@ -10,6 +11,14 @@ import { formatEth, formatWord } from "@/lib/format";
 import styles from "./token.module.css";
 
 const CAP = 11_000_000; // 11,000,000e18 sealed cap — the one fixed number
+
+// UI-only minimum to enable the buyback button. The contract has NO balance
+// floor: MIN_BUYBACK_ETH is an anti-dust *minimum-spend*, and when the engine
+// balance is below it, executeBuyback simply requires spending the whole
+// balance — so a buyback at 0.05 ETH is valid on-chain. This 0.05 is purely
+// our UI floor to avoid surfacing uneconomic dust buybacks; it is stricter
+// than nothing but looser than the contract's 0.1 minimum-spend.
+const BUYBACK_UI_MIN_WEI = parseEther("0.05");
 
 const toWord = (wei: bigint) => Number(wei / 10n ** 18n);
 
@@ -84,12 +93,12 @@ function TokenBody({
     s.pendingEthWei > s.maxBuybackWei ? s.maxBuybackWei : s.pendingEthWei;
   const buybackReady =
     hasExcess &&
-    s.pendingEthWei >= s.minBuybackWei &&
+    s.pendingEthWei >= BUYBACK_UI_MIN_WEI &&
     s.lastBuybackBlock !== s.blockNumber;
   const buybackHint = !hasExcess
     ? "Nothing burnable right now."
-    : s.pendingEthWei < s.minBuybackWei
-      ? `Needs at least ${formatEth(s.minBuybackWei, 1)} ETH accrued.`
+    : s.pendingEthWei < BUYBACK_UI_MIN_WEI
+      ? `Needs at least ${formatEth(BUYBACK_UI_MIN_WEI, 2)} ETH accrued.`
       : s.lastBuybackBlock === s.blockNumber
         ? "A buyback already ran this block."
         : undefined;
