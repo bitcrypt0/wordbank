@@ -10,9 +10,9 @@ import { isDeployed, requireAddress } from "@/lib/contracts/addresses";
 import { NotDeployedError, useChainData } from "@/lib/hooks/useChainData";
 import { getLogsChunked } from "@/lib/events/logs";
 import { claimableForToken, getRecentSentences } from "@/lib/reads/bounties";
+import { enumerateOwnedTokens } from "@/lib/reads/ownerEnum";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 
-const TRANSFER_EVENT = getAbiItem({ abi: wordBankAbi, name: "Transfer" }) as AbiEvent;
 const CLAIMED_EVENT = getAbiItem({ abi: rewardsDistributorAbi, name: "Claimed" }) as AbiEvent;
 
 /** Multicall batch size — keeps each aggregate eth_call well within RPC limits. */
@@ -76,52 +76,16 @@ export function useRewardsData() {
         return { tokens: [], pendingTotalWei: 0n, lifetimeClaimedWei: 0n, rewardsBps, expectedCount: 0, partial: false, bountyScanComplete: true };
       }
 
-      const expectedCount = Number(
-        await client.readContract({ address: bank, abi: wordBankAbi, functionName: "balanceOf", args: [account] }),
-      );
+      // 1-2) Discover owned tokenIds WITHOUT eth_getLogs (restricted public RPCs
+      //       cripple getLogs). WordBank ids are sequential 1..totalMinted(); we
+      //       enumerate ownerOf in multicall batches and early-stop at balanceOf.
+      //       ownerOf/balanceOf/totalMinted are plain eth_call/multicall, supported
+      //       by every RPC. See lib/reads/ownerEnum.ts.
+      const { owned, expectedCount, partial: enumPartial } = await enumerateOwnedTokens(client, bank, account);
       if (expectedCount === 0) {
         return { tokens: [], pendingTotalWei: 0n, lifetimeClaimedWei: 0n, rewardsBps, expectedCount: 0, partial: false, bountyScanComplete: true };
       }
-
-      let partial = false;
-
-      // 1) Discover received tokenIds (resilient, full history, early-stop once we
-      //    have at least `expectedCount` distinct ids — a holder must have received
-      //    each token it now owns).
-      const seen = new Set<bigint>();
-      const xfer = await getLogsChunked(client, {
-        address: bank,
-        event: TRANSFER_EVENT,
-        args: { to: account },
-        // Default lookback (bounded) + early-stop once the full balance is found;
-        // a recent deploy's mints are well within it. If the floor is reached
-        // before finding them all, owned<expected below flags partial.
-        stopWhen: (logs) => {
-          for (const l of logs) seen.add((l as unknown as { args: { tokenId: bigint } }).args.tokenId);
-          return seen.size >= expectedCount;
-        },
-        onGap: () => {
-          partial = true;
-        },
-      });
-      const candidates = [
-        ...new Set(xfer.map((l) => (l as unknown as { args: { tokenId: bigint } }).args.tokenId)),
-      ];
-
-      // 2) Confirm current ownership in batches (allowFailure — burned ids revert).
-      const ownerChecks = await inBatches(candidates, MULTICALL_BATCH, (batch) =>
-        client.multicall({
-          allowFailure: true,
-          contracts: batch.map((tokenId) => ({ address: bank, abi: wordBankAbi, functionName: "ownerOf" as const, args: [tokenId] })),
-        }),
-      );
-      const owned: bigint[] = [];
-      candidates.forEach((tokenId, i) => {
-        const r = ownerChecks[i];
-        if (r?.status === "success" && String(r.result).toLowerCase() === account.toLowerCase()) owned.push(tokenId);
-      });
-      owned.sort((a, b) => (a < b ? -1 : 1));
-      if (owned.length < expectedCount) partial = true; // discovery couldn't find all
+      let partial = enumPartial;
 
       // 3) Per-token pending + word, in batches (homogeneous multicalls, allowFailure).
       const pendings = await inBatches(owned, MULTICALL_BATCH, (batch) =>
@@ -197,18 +161,26 @@ export function useRewardsData() {
         });
       });
 
-      // 4) Lifetime claimed (resilient; partial-tolerant).
+      // 4) Lifetime claimed (resilient; partial-tolerant). This is the only
+      //    remaining getLogs path here and it must NEVER blank the NFT grid: the
+      //    token list above is already built from the log-free ownerOf
+      //    enumeration. If getLogs is refused outright by a restricted RPC, we
+      //    catch it, mark the result partial, and still return the populated grid.
       let lifetimeClaimedWei = 0n;
-      const claimedLogs = await getLogsChunked(client, {
-        address: rd,
-        event: CLAIMED_EVENT,
-        args: { to: account },
-        onGap: () => {
-          partial = true;
-        },
-      });
-      for (const log of claimedLogs) {
-        lifetimeClaimedWei += (log as unknown as { args: { amount: bigint } }).args.amount;
+      try {
+        const claimedLogs = await getLogsChunked(client, {
+          address: rd,
+          event: CLAIMED_EVENT,
+          args: { to: account },
+          onGap: () => {
+            partial = true;
+          },
+        });
+        for (const log of claimedLogs) {
+          lifetimeClaimedWei += (log as unknown as { args: { amount: bigint } }).args.amount;
+        }
+      } catch {
+        partial = true; // couldn't total lifetime claimed — grid still stands
       }
 
       return { tokens, pendingTotalWei, lifetimeClaimedWei, rewardsBps, expectedCount, partial, bountyScanComplete };
