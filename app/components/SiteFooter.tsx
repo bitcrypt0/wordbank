@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { WordbankGlyph } from "./Logo";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 import styles from "./SiteFooter.module.css";
 
 export function SiteFooter() {
@@ -32,6 +33,7 @@ export function SiteFooter() {
       </div>
       <div className={`container ${styles.legal}`}>
         <span>WORDBANK — the word is the art.</span>
+        <ProvenanceBadge />
         <span className="mono">fully onchain · Ethereum mainnet</span>
       </div>
     </footer>

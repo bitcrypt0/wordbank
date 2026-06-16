@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CONTRACTS, etherscanUrl } from "@/lib/mocks/contracts";
+import { ProvenanceSection } from "@/components/ProvenanceSection";
 import styles from "./docs.module.css";
 
 export const metadata = { title: "Docs" };
@@ -35,6 +36,7 @@ export default function DocsPage() {
         <a href="#assets">The two assets</a>
         <a href="#words">The words</a>
         <a href="#art">The art</a>
+        <a href="#provenance">Provenance</a>
         <a href="#fees">The fee</a>
         <a href="#game">The daily game</a>
         <a href="#rewards">Holder rewards</a>
@@ -247,6 +249,9 @@ export default function DocsPage() {
           Legendary.
         </p>
       </section>
+
+      {/* ── 4b · provenance (live on-chain hash) ── */}
+      <ProvenanceSection />
 
       {/* ── 5 · fees ── */}
       <section id="fees" className={styles.section}>

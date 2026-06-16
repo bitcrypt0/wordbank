@@ -26,6 +26,11 @@ export function shortAddress(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
+/** Truncate a bytes32 hash for compact display: "0xd164…ffd1". */
+export function truncateHash(hash: string): string {
+  return `${hash.slice(0, 6)}…${hash.slice(-4)}`;
+}
+
 export function formatInt(n: number): string {
   return n.toLocaleString("en-US");
 }
