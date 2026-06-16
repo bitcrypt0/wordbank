@@ -15,9 +15,10 @@
  *  - Wallet is INJECTED EIP-6963 / window.ethereum — an in-page JS object, NOT a
  *    page network connection, so it needs NO connect-src entry. The EIP-1193
  *    request() path goes through the extension, not fetch from the page origin.
- *  - The PUBLIC RPC FALLBACK (viem http() to chain-default public endpoints, e.g.
- *    https://eth.merkle.io for mainnet / https://11155111.rpc.thirdweb.com for
- *    Sepolia) AND any owner-set public NEXT_PUBLIC_RPC_URL DO make page fetches
+ *  - The PUBLIC RPC FALLBACK (viem fallback([...]) of keyless public endpoints,
+ *    e.g. https://ethereum-rpc.publicnode.com / https://eth.drpc.org for mainnet —
+ *    see PUBLIC_FALLBACK_RPCS in lib/contracts/chain.ts) AND any owner-set public
+ *    NEXT_PUBLIC_RPC_URL DO make page fetches
  *    → connect-src must allow them. Because the owner may set any public RPC in
  *    Vercel and viem's defaults can change, we allow `'self' https: wss:` rather
  *    than an exact-origin allowlist that would silently break reads if the owner

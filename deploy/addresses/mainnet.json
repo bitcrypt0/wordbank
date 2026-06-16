@@ -19,5 +19,6 @@
   "royaltySplitter": "0xd960b862e6fB93F9188f13474D57a14571d81470",
   "provenanceHash": "0xd1642a6eab87955e54f2eacb75791f29a5bd96db486da532c6808f6d9fe0ffd1",
   "slotsLocked": true,
-  "positionTokenId": "316917"
+  "positionTokenId": "316917",
+  "lockedUntil": "1813242935"
 }

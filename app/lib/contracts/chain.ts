@@ -8,15 +8,23 @@
  *      provider (viem `custom(provider)`). The dApp never proxies the owner's RPC.
  *   2. NEXT_PUBLIC_RPC_URL → used ONLY if explicitly set (must be a PUBLIC/keyless
  *      URL the owner chooses for the pre-connect fallback). OPTIONAL.
- *   3. PUBLIC DEFAULT    → viem's chain-default public RPC (`http()` with no URL).
+ *   3. PUBLIC FALLBACK   → an explicit viem `fallback([...])` of KEYLESS public
+ *      endpoints, ordered best-first, that can actually execute the V4 Quoter's
+ *      heavy `eth_call` simulation (see PUBLIC_FALLBACK_RPCS below).
  *
  * There is NO Alchemy/Infura/keyed URL as a committed default, hardcoded fallback,
  * or required value. The dApp works fully with `NEXT_PUBLIC_RPC_URL` unset.
  *
+ * WHY AN EXPLICIT FALLBACK LIST (bug fix 2026-06-16): viem's chain-default
+ * `http()` (no URL) resolves to cloudflare-eth on mainnet, which returns
+ * `-32603 Internal error` on the V4 Quoter `quoteExactInputSingle` simulation —
+ * so swap quotes showed `0` for disconnected visitors. The endpoints below were
+ * each verified to return the real quote against the live mainnet pool.
+ *
  * "Wrong network" is anything other than the configured chain; the one-click
  * switch and all reads/writes target it. Injected-only wallet rules unchanged.
  */
-import { createPublicClient, custom, http, type Chain } from "viem";
+import { createPublicClient, custom, fallback, http, type Chain } from "viem";
 import { mainnet, sepolia } from "viem/chains";
 
 /**
@@ -46,13 +54,37 @@ export const CHAIN: Chain = SUPPORTED[EXPECTED_CHAIN_ID] ?? mainnet;
 
 /**
  * OPTIONAL public fallback RPC used only before a wallet connects. If unset we
- * fall through to the chain's own public RPC (`http()` with no URL). MUST stay a
- * PUBLIC/keyless URL — `NEXT_PUBLIC_*` is shipped to every visitor's browser, so
- * an Alchemy/Infura key here would be exposed. Empty/blank is treated as unset.
+ * fall through to the verified keyless `PUBLIC_FALLBACK_RPCS` list below. MUST
+ * stay a PUBLIC/keyless URL — `NEXT_PUBLIC_*` is shipped to every visitor's
+ * browser, so an Alchemy/Infura key here would be exposed. Empty/blank = unset.
  */
 const _rawRpc = process.env.NEXT_PUBLIC_RPC_URL;
 export const PUBLIC_RPC_URL =
   _rawRpc && _rawRpc.trim() !== "" ? _rawRpc.trim() : undefined;
+
+/**
+ * KEYLESS public fallback endpoints per chain, ordered best-first. Used only when
+ * no wallet is connected and no owner-set `NEXT_PUBLIC_RPC_URL` is present. Each
+ * mainnet entry was verified to execute the V4 Quoter simulation and return the
+ * real WORD quote against the live pool — viem `fallback()` tries them
+ * in order and rolls to the next on failure, so a single endpoint hiccup (e.g.
+ * an occasional rate-limit) won't break quotes.
+ *
+ * DELIBERATELY EXCLUDED for mainnet: cloudflare-eth (viem's `http()` default),
+ * eth.merkle.io, eth.llamarpc.com — all of them fail the quoter `eth_call`.
+ * All entries are keyless/public; NEVER put the owner's Alchemy/Infura key here.
+ */
+const PUBLIC_FALLBACK_RPCS: Record<number, string[]> = {
+  [mainnet.id]: [
+    "https://ethereum-rpc.publicnode.com", // verified: returns the quoter result
+    "https://eth.drpc.org", // verified: returns the quoter result
+    "https://1rpc.io/eth", // verified: returns the quoter result
+  ],
+  [sepolia.id]: [
+    "https://ethereum-sepolia-rpc.publicnode.com", // keyless Sepolia
+    "https://sepolia.drpc.org",
+  ],
+};
 
 /**
  * The connected wallet's EIP-1193 provider, registered by WalletProvider so chain
@@ -79,9 +111,18 @@ export function setReadProvider(provider: Eip1193Like | null): void {
 
 /** Build the read transport per the resolution order (wallet → env URL → public). */
 function buildTransport() {
+  // 1. Connected wallet: reads ride the visitor's own node (custom EIP-1193).
   if (_walletProvider) return custom(_walletProvider);
-  // No wallet: optional owner-chosen PUBLIC url, else the chain's default public RPC.
-  return PUBLIC_RPC_URL ? http(PUBLIC_RPC_URL) : http();
+  // 2. Optional owner-chosen PUBLIC url (front-rank it, then keep the keyless
+  //    fallbacks behind it so a flaky owner URL still degrades gracefully).
+  // 3. Else the verified keyless fallback list for the configured chain.
+  const keyless = PUBLIC_FALLBACK_RPCS[EXPECTED_CHAIN_ID] ?? [];
+  const urls = [...(PUBLIC_RPC_URL ? [PUBLIC_RPC_URL] : []), ...keyless];
+  // viem `fallback` rotates to the next transport on error/timeout. If somehow
+  // no URL is known for the chain, fall back to viem's chain-default `http()`.
+  return urls.length > 0
+    ? fallback(urls.map((u) => http(u)))
+    : http();
 }
 
 /**

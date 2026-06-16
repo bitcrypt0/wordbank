@@ -39,10 +39,18 @@ Chain reads (balances, stats, events, simulation) resolve in this order
    **optional** and must be a **PUBLIC / keyless** URL — `NEXT_PUBLIC_*` is inlined
    into the browser bundle, so an Alchemy/Infura key here would be exposed to every
    visitor.
-3. **Public default** → viem's chain-default public RPC (`http()` with no URL).
+3. **Public fallback** → an explicit viem `fallback([...])` of **keyless** public
+   endpoints, ordered best-first (mainnet: `ethereum-rpc.publicnode.com` →
+   `eth.drpc.org` → `1rpc.io/eth`). These are NOT viem's chain default
+   (cloudflare-eth): cloudflare/merkle/llama all return `-32603` on the V4 Quoter's
+   heavy `eth_call`, so swap quotes showed `0` for disconnected visitors. The
+   chosen endpoints are each verified to execute the quoter against the live
+   mainnet pool; viem rotates to the next on any error.
 
-The dApp works fully with `NEXT_PUBLIC_RPC_URL` **unset**. In Vercel, set only
-`NEXT_PUBLIC_CHAIN_ID=1` (and optionally a *public* `NEXT_PUBLIC_RPC_URL`) —
+The dApp works fully with `NEXT_PUBLIC_RPC_URL` **unset** (it falls back to the
+keyless list above, which CAN run the quoter). In Vercel, set only
+`NEXT_PUBLIC_CHAIN_ID=1` (and optionally a *public* `NEXT_PUBLIC_RPC_URL`, e.g.
+`https://ethereum-rpc.publicnode.com`, to pin the pre-connect fallback) —
 **never** the Alchemy/Infura key. The wrong-network guard reads the chainId from
 the wallet provider, so it keeps working regardless of which read path is active.
 
