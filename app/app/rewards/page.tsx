@@ -163,6 +163,7 @@ export default function DashboardPage() {
               <BatchUnbindConfirm
                 rows={selectedRows}
                 bountyScanComplete={data?.bountyScanComplete ?? false}
+                unbindAvailable={data?.unbindAvailable ?? false}
                 onConfirmed={() => {
                   setSelected([]);
                   refetch();

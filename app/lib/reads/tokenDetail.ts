@@ -15,6 +15,14 @@ export interface TokenDetail {
   exists: boolean;
   /** Mirrors WordBank.offsetSet() — false until reveal; word/traits aren't set yet. */
   revealed: boolean;
+  /**
+   * Mirrors WordBank.registrySynced() (offsetSet && registryCursor ==
+   * preRevealMinted). The precise "unbind is callable" signal — `_unbind`
+   * reverts TokenNotInRegistry() until this is true (after reveal + buildRegistry).
+   * More accurate than `revealed` alone: it also covers the brief post-reveal
+   * window before sync-registry finishes.
+   */
+  unbindAvailable: boolean;
   word: string;
   category: Category;
   material: number;
@@ -54,13 +62,14 @@ export function useTokenDetail(tokenId: number) {
       // allowFailure and only trust it once revealed. isAlive/bondedBalance are
       // always callable. ownerOf success proves the token is minted & not burned
       // (works pre-reveal — that's what backs the placeholder existence check).
-      const [wdRes, aliveRes, bondedRes, ownerRes] = await client.multicall({
+      const [wdRes, aliveRes, bondedRes, ownerRes, syncedRes] = await client.multicall({
         allowFailure: true,
         contracts: [
           { address: bank, abi: wordBankAbi, functionName: "wordDataOf", args: [id] },
           { address: bank, abi: wordBankAbi, functionName: "isAlive", args: [id] },
           { address: bank, abi: wordBankAbi, functionName: "bondedBalance", args: [id] },
           { address: bank, abi: wordBankAbi, functionName: "ownerOf", args: [id] },
+          { address: bank, abi: wordBankAbi, functionName: "registrySynced" },
         ],
       });
 
@@ -72,6 +81,8 @@ export function useTokenDetail(tokenId: number) {
       const bonded = bondedRes.status === "success" ? (bondedRes.result as bigint) : 0n;
       const ownerFromCall =
         ownerRes.status === "success" ? String(ownerRes.result) : null;
+      const unbindAvailable =
+        syncedRes.status === "success" ? Boolean(syncedRes.result) : false;
 
       // A token "exists" if it has a word (post-reveal) OR ownerOf resolves
       // (pre-reveal minted & not burned). This keeps the № lookup honest pre-reveal.
@@ -99,6 +110,7 @@ export function useTokenDetail(tokenId: number) {
         tokenId,
         exists,
         revealed,
+        unbindAvailable,
         word: wd?.word ?? "",
         category: CATEGORY_BY_INDEX[wd?.category ?? 0] ?? "NOUN",
         material: wd?.material ?? 0,

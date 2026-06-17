@@ -28,14 +28,25 @@ import styles from "./rewards.module.css";
  *   5. A type-to-confirm keystroke gate: the holder must type `UNBIND <N>`.
  * Only then does the final button arm and call `unbindMany(selectedIds)`.
  */
+/** Shown wherever the action is blocked because the registry isn't synced yet. */
+const UNBIND_LOCKED_MESSAGE =
+  "Unbinding opens after the reveal. Words can only be unbound once the collection is revealed and the registry is built (after the public sell-out).";
+
 export function BatchUnbindConfirm({
   rows,
   bountyScanComplete,
+  unbindAvailable,
   onConfirmed,
 }: {
   rows: RewardRow[];
   /** False → the bounty scan couldn't confirm; show a generic forfeiture warning. */
   bountyScanComplete: boolean;
+  /**
+   * Mirrors WordBank.registrySynced(). False → `_unbind` reverts
+   * TokenNotInRegistry() (pre-reveal / pre-buildRegistry); disable the action
+   * entirely and explain why rather than let a doomed tx be sent.
+   */
+  unbindAvailable: boolean;
   onConfirmed: () => void;
 }) {
   const { account } = useWallet();
@@ -56,7 +67,7 @@ export function BatchUnbindConfirm({
 
   const confirmPhrase = `UNBIND ${count}`;
   const phraseMatches = typed.trim().toUpperCase() === confirmPhrase;
-  const armed = understood && phraseMatches && count > 0;
+  const armed = understood && phraseMatches && count > 0 && unbindAvailable;
   const busy = state === "simulating" || state === "pending" || state === "confirming";
 
   function close() {
@@ -66,9 +77,15 @@ export function BatchUnbindConfirm({
     reset();
   }
 
-  // Disabled trigger (with a hint) when nothing is selected or no wallet.
+  // Disabled trigger (with a hint) when unbinding isn't callable yet
+  // (registry not synced), nothing is selected, or no wallet.
   if (!open) {
-    const disabled = count === 0;
+    const disabled = !unbindAvailable || count === 0;
+    const hint = !unbindAvailable
+      ? UNBIND_LOCKED_MESSAGE
+      : count === 0
+        ? "Select at least one word to unbind."
+        : null;
     return (
       <span className={styles.unbindTriggerWrap}>
         <button
@@ -79,9 +96,7 @@ export function BatchUnbindConfirm({
         >
           Unbind selected
         </button>
-        {disabled ? (
-          <span className={styles.txHintInline}>Select at least one word to unbind.</span>
-        ) : null}
+        {hint ? <span className={styles.txHintInline}>{hint}</span> : null}
       </span>
     );
   }
@@ -101,6 +116,16 @@ export function BatchUnbindConfirm({
         its 1,000 WORD backing releases to your wallet. The collection shrinks by{" "}
         {count}.
       </p>
+
+      {/* Defensive: the trigger is disabled when !unbindAvailable, so the panel
+          normally can't open pre-reveal — but if it ever is reached, say why and
+          keep it disarmed (the `armed` gate already requires unbindAvailable). */}
+      {!unbindAvailable ? (
+        <div className={styles.unbindBountyWarn} role="alert">
+          <p className={styles.unbindBountyTitle}>⚠ Unbinding isn&apos;t available yet</p>
+          <p className={styles.unbindBountyNote}>{UNBIND_LOCKED_MESSAGE}</p>
+        </div>
+      ) : null}
 
       {/* Exactly which words/ids burn. */}
       <ul className={styles.unbindList}>

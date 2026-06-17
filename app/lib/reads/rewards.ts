@@ -45,6 +45,14 @@ export interface RewardsData {
    * unbind confirm then falls back to a strong generic forfeiture warning.
    */
   bountyScanComplete: boolean;
+  /**
+   * Mirrors WordBank.registrySynced() (offsetSet && registryCursor ==
+   * preRevealMinted). Unbinding reverts `TokenNotInRegistry()` until this is
+   * true — i.e. unbinding is only callable AFTER the reveal AND the category
+   * registry has been built (post public sell-out). The Dashboard gates the
+   * batch "Unbind selected" action on this; claiming is unaffected.
+   */
+  unbindAvailable: boolean;
 }
 
 /** Run `fn` over `items` in fixed-size batches, sequentially, and flatten. */
@@ -72,8 +80,18 @@ export function useRewardsData() {
         await client.readContract({ address: hook, abi: feeHookAbi, functionName: "rewardsBps" }),
       );
 
+      // Is unbinding callable at all? `_unbind` reverts TokenNotInRegistry()
+      // until registrySynced() (offsetSet && registryCursor == preRevealMinted),
+      // which only becomes true after the reveal + buildRegistry. Pre-reveal this
+      // is false on mainnet, so the Dashboard must not let users fire a doomed
+      // batch unbind. Cheap single eth_call; default false on read failure.
+      const unbindAvailable = await client
+        .readContract({ address: bank, abi: wordBankAbi, functionName: "registrySynced" })
+        .then((v) => Boolean(v))
+        .catch(() => false);
+
       if (!account) {
-        return { tokens: [], pendingTotalWei: 0n, lifetimeClaimedWei: 0n, rewardsBps, expectedCount: 0, partial: false, bountyScanComplete: true };
+        return { tokens: [], pendingTotalWei: 0n, lifetimeClaimedWei: 0n, rewardsBps, expectedCount: 0, partial: false, bountyScanComplete: true, unbindAvailable };
       }
 
       // 1-2) Discover owned tokenIds WITHOUT eth_getLogs (restricted public RPCs
@@ -83,7 +101,7 @@ export function useRewardsData() {
       //       by every RPC. See lib/reads/ownerEnum.ts.
       const { owned, expectedCount, partial: enumPartial } = await enumerateOwnedTokens(client, bank, account);
       if (expectedCount === 0) {
-        return { tokens: [], pendingTotalWei: 0n, lifetimeClaimedWei: 0n, rewardsBps, expectedCount: 0, partial: false, bountyScanComplete: true };
+        return { tokens: [], pendingTotalWei: 0n, lifetimeClaimedWei: 0n, rewardsBps, expectedCount: 0, partial: false, bountyScanComplete: true, unbindAvailable };
       }
       let partial = enumPartial;
 
@@ -183,7 +201,7 @@ export function useRewardsData() {
         partial = true; // couldn't total lifetime claimed — grid still stands
       }
 
-      return { tokens, pendingTotalWei, lifetimeClaimedWei, rewardsBps, expectedCount, partial, bountyScanComplete };
+      return { tokens, pendingTotalWei, lifetimeClaimedWei, rewardsBps, expectedCount, partial, bountyScanComplete, unbindAvailable };
     },
     [account],
     { refetchInterval: 30_000 },

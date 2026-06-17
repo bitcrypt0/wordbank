@@ -197,7 +197,7 @@ export default function TokenPage() {
               >
                 Claim {formatEth(token.pendingRewardsWei)} ETH rewards
               </TxButton>
-              {token.revealed ? (
+              {token.unbindAvailable ? (
                 <Link href={`/unbind/${token.tokenId}`} className="btn btn--danger">
                   Unbind…
                 </Link>
@@ -205,7 +205,7 @@ export default function TokenPage() {
                 <span
                   className="btn btn--danger"
                   aria-disabled="true"
-                  title="Unbinding opens after the reveal — the confirm step types the word, which is assigned at sell-out."
+                  title="Unbinding opens after the reveal, once the collection is revealed and the registry is built (after the public sell-out). The confirm step also types the word, which is assigned at sell-out."
                   style={{ opacity: 0.5, pointerEvents: "none" }}
                 >
                   Unbind (after reveal)
