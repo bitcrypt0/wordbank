@@ -75,12 +75,15 @@ export const PUBLIC_RPC_URL =
  */
 const PUBLIC_FALLBACK_RPCS: Record<number, string[]> = {
   [mainnet.id]: [
-    "https://ethereum-rpc.publicnode.com", // verified: quoter + ownerOf + getLogs
-    "https://eth.drpc.org", // verified: returns the quoter result
-    "https://1rpc.io/eth", // verified: returns the quoter result
+    "https://ethereum-rpc.publicnode.com", // verified: quoter + ownerOf + wide getLogs (≥9k blocks)
+    "https://eth.drpc.org", // verified: quoter result + ≥9k-block getLogs
+    // NOTE: https://1rpc.io/eth was REMOVED (2026-06-16). Its eth_getLogs is hard-capped
+    // at 50 blocks, so when fallback() rotated to it any getLogs scan exploded into
+    // hundreds of recursive sub-windows — the catastrophic slowdown on the /game page.
+    // publicnode + drpc both handle the quoter AND wide getLogs; two endpoints keep redundancy.
   ],
   [sepolia.id]: [
-    "https://ethereum-sepolia-rpc.publicnode.com", // keyless Sepolia
+    "https://ethereum-sepolia-rpc.publicnode.com", // keyless Sepolia (handles wide getLogs)
     "https://sepolia.drpc.org",
   ],
 };

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { parseEther } from "viem";
-import { useBurnData, useRoyaltyTotals } from "@/lib/reads/token";
+import { useBurnData, useRoyaltyTotals, useBuybackSizing } from "@/lib/reads/token";
 import { requireAddress } from "@/lib/contracts/addresses";
 import { burnEngineAbi, feeHookAbi, royaltySplitterAbi } from "@/lib/contracts/abis";
 import { SwapPanel } from "@/components/SwapPanel";
@@ -87,21 +87,43 @@ function TokenBody({
   const excessPct = (excess / CAP) * 100;
   const burnedPct = (burned / CAP) * 100;
 
-  // executeBuyback(maxEthToSpend): spend accrued ETH, clamped to the engine's
-  // own MIN..MAX bounds (the contract sizes it never to overshoot the floor).
-  const spendWei =
-    s.pendingEthWei > s.maxBuybackWei ? s.maxBuybackWei : s.pendingEthWei;
-  const buybackReady =
-    hasExcess &&
-    s.pendingEthWei >= BUYBACK_UI_MIN_WEI &&
-    s.lastBuybackBlock !== s.blockNumber;
+  // Base gates that don't need a simulation: there must be burnable excess, at
+  // least the UI floor of accrued ETH, and no buyback already this block.
+  const sameBlock = s.lastBuybackBlock === s.blockNumber;
+  const baseEligible =
+    hasExcess && s.pendingEthWei >= BUYBACK_UI_MIN_WEI && !sameBlock;
+
+  // Self-sizing: pre-simulate executeBuyback across a small descending set of
+  // candidate amounts (min(pending, MAX) → … → MIN_BUYBACK_ETH) and use the
+  // LARGEST that simulates successfully as maxEthToSpend — instead of blindly
+  // sending the whole accrued balance, which can exceed the thin pool's depth at
+  // the current slippage guard and revert. Only run while the base gates pass.
+  const sizing = useBuybackSizing(
+    s.pendingEthWei,
+    s.minBuybackWei,
+    s.maxBuybackWei,
+    baseEligible,
+  );
+  const sizingChecked = sizing.status === "loaded" && sizing.data?.checked === true;
+  const sizingPending = baseEligible && sizing.status !== "error" && !sizingChecked;
+  // The amount we've actually validated will go through (null = none fits today).
+  const spendWei = sizing.data?.spendWei ?? null;
+  const noneFits = baseEligible && sizingChecked && spendWei === null;
+
+  const buybackReady = baseEligible && spendWei !== null;
   const buybackHint = !hasExcess
     ? "Nothing burnable right now."
     : s.pendingEthWei < BUYBACK_UI_MIN_WEI
       ? `Needs at least ${formatEth(BUYBACK_UI_MIN_WEI, 2)} ETH accrued.`
-      : s.lastBuybackBlock === s.blockNumber
-        ? "A buyback already ran this block."
-        : undefined;
+      : sameBlock
+        ? "A buyback already ran this block — try again next block."
+        : sizingPending
+          ? "Sizing the buyback to what the pool can absorb…"
+          : noneFits
+            ? "Buyback can't run right now — the WORD/ETH pool is too shallow for a buyback at the current slippage setting. It'll work once the buyback slippage tolerance is raised or pool liquidity is added."
+            : sizing.status === "error"
+              ? "Couldn't size the buyback right now — try again in a moment."
+              : undefined;
 
   const rt = royalty.data;
 
@@ -181,18 +203,29 @@ function TokenBody({
           </div>
           <div className={styles.buybackAction}>
             <TxButton
-              build={() => ({
-                address: requireAddress("burnEngine"),
-                abi: burnEngineAbi,
-                functionName: "executeBuyback",
-                args: [spendWei],
-              })}
+              build={() =>
+                spendWei === null
+                  ? null
+                  : {
+                      address: requireAddress("burnEngine"),
+                      abi: burnEngineAbi,
+                      functionName: "executeBuyback",
+                      // Send the exact amount we pre-simulated as successful, so
+                      // the on-chain call matches what we validated.
+                      args: [spendWei],
+                    }
+              }
               disabled={!buybackReady}
               disabledHint={buybackHint}
-              onConfirmed={refetch}
+              onConfirmed={() => {
+                refetch();
+                sizing.refetch();
+              }}
               confirmedLabel="Burned ✓"
             >
-              Buy &amp; burn {formatEth(spendWei)} ETH worth
+              {spendWei !== null
+                ? `Buy & burn ${formatEth(spendWei)} ETH worth`
+                : "Buy & burn"}
             </TxButton>
             <p className={styles.smallprint}>
               Protected by an onchain slippage guard ({s.maxSlippageBps / 100}%
