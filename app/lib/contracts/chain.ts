@@ -7,13 +7,30 @@
  *   Reads ALWAYS target the configured chain's own RPC, regardless of whether a
  *   wallet is connected and regardless of which network the wallet is on. This
  *   guarantees the Dashboard, owned-NFT discovery, and swap quotes work pre- and
- *   post-connect identically. The read transport is:
- *     1. NEXT_PUBLIC_RPC_URL → used ONLY if explicitly set (must be a PUBLIC/
- *        keyless URL). Front-ranked. OPTIONAL.
- *     2. PUBLIC FALLBACK   → an explicit viem `fallback([...])` of KEYLESS public
+ *   post-connect identically. The read transport is, in order:
+ *     1. SAME-ORIGIN PROXY (/api/rpc) → front-ranked ONLY when the owner has set
+ *        up the optional server-side RPC proxy (server-only `RPC_PROXY_URL` +
+ *        the public opt-in flag `NEXT_PUBLIC_RPC_PROXY=1`). The proxy forwards
+ *        JSON-RPC to a KEYED endpoint (e.g. Alchemy) that lives ONLY on the
+ *        server — the key is NEVER shipped to the browser or the repo. See
+ *        app/app/api/rpc/route.ts. This is the most reliable read path.
+ *     2. NEXT_PUBLIC_RPC_URL → used ONLY if explicitly set (must be a PUBLIC/
+ *        keyless URL). OPTIONAL.
+ *     3. PUBLIC FALLBACK   → an explicit viem `fallback([...])` of KEYLESS public
  *        endpoints, ordered best-first, that can execute the V4 Quoter's heavy
  *        `eth_call` simulation AND serve ownerOf/eth_getLogs (see
- *        PUBLIC_FALLBACK_RPCS below).
+ *        PUBLIC_FALLBACK_RPCS below). Each `http()` is given retry/backoff +
+ *        timeout so a 429/5xx burst is retried and rotated rather than thrown.
+ *
+ * RATE-LIMIT RESILIENCE (change order 2026-06-16): a read-heavy page (the /game
+ * console especially) fires ~10+ JSON-RPC requests on mount; free public
+ * endpoints 429 that burst, so a read throws and content never renders. Two
+ * mitigations on the READ client:
+ *   - Each `http(url)` carries `{ retryCount, retryDelay, timeout }` so a 429/5xx
+ *     is retried with backoff before viem `fallback()` rotates to the next URL.
+ *   - The public client enables request coalescing (`batch: { multicall: true }`)
+ *     so per-render `readContract`s collapse into far fewer Multicall3 calls,
+ *     shrinking the burst that triggers the limiter in the first place.
  *
  * The wallet's EIP-1193 provider is used ONLY for WRITES (see clients.ts) and
  * network UX (wrongNetwork detection + one-click switch in WalletProvider). It
@@ -63,6 +80,27 @@ export const PUBLIC_RPC_URL =
   _rawRpc && _rawRpc.trim() !== "" ? _rawRpc.trim() : undefined;
 
 /**
+ * OPTIONAL server-side RPC proxy opt-in. The proxy ROUTE (app/app/api/rpc) reads
+ * the SERVER-ONLY `RPC_PROXY_URL` (a keyed endpoint, e.g. Alchemy) — that secret
+ * is NEVER exposed to the browser. But the browser-side read client can't see a
+ * server-only env var, so the owner sets this PUBLIC flag alongside it to tell
+ * the client to front-rank the same-origin `/api/rpc` transport:
+ *
+ *     RPC_PROXY_URL=https://eth-mainnet.g.alchemy.com/v2/<key>   (server-only)
+ *     NEXT_PUBLIC_RPC_PROXY=1                                    (public opt-in)
+ *
+ * The flag carries NO secret (it's just "1"); the key stays server-side. If the
+ * flag is set but the route isn't actually configured, the route returns 503 and
+ * viem `fallback()` rolls straight to the keyless public list — graceful, no crash.
+ */
+const _rawProxyFlag = process.env.NEXT_PUBLIC_RPC_PROXY;
+export const RPC_PROXY_ENABLED =
+  !!_rawProxyFlag && _rawProxyFlag.trim() !== "" && _rawProxyFlag.trim() !== "0";
+
+/** Same-origin proxy path — resolved relative to the page origin in the browser. */
+const RPC_PROXY_PATH = "/api/rpc";
+
+/**
  * KEYLESS public fallback endpoints per chain, ordered best-first. Each mainnet
  * entry was verified to execute the V4 Quoter simulation, serve `ownerOf`, and
  * handle wide `eth_getLogs` ranges against the live pool — viem `fallback()`
@@ -75,12 +113,15 @@ export const PUBLIC_RPC_URL =
  */
 const PUBLIC_FALLBACK_RPCS: Record<number, string[]> = {
   [mainnet.id]: [
-    "https://ethereum-rpc.publicnode.com", // verified: quoter + ownerOf + wide getLogs (≥9k blocks)
+    "https://ethereum-rpc.publicnode.com", // PRIMARY — verified: quoter + ownerOf + wide getLogs (≥9k blocks) + multicall
     "https://eth.drpc.org", // verified: quoter result + ≥9k-block getLogs
-    // NOTE: https://1rpc.io/eth was REMOVED (2026-06-16). Its eth_getLogs is hard-capped
-    // at 50 blocks, so when fallback() rotated to it any getLogs scan exploded into
+    "https://rpc.ankr.com/eth", // rotation headroom (2026-06-16): keyless, verified quoter eth_call + multicall + getLogs
+    // NOTE: https://1rpc.io/eth stays REMOVED. Its eth_getLogs is hard-capped at
+    // 50 blocks, so when fallback() rotated to it any getLogs scan exploded into
     // hundreds of recursive sub-windows — the catastrophic slowdown on the /game page.
-    // publicnode + drpc both handle the quoter AND wide getLogs; two endpoints keep redundancy.
+    // cloudflare-eth / eth.merkle.io / eth.llamarpc.com are excluded too: they fail
+    // the V4 Quoter eth_call. Each endpoint above carries retry/backoff (see http()
+    // wrapper in buildTransport) so a 429 burst is retried + rotated, not thrown.
   ],
   [sepolia.id]: [
     "https://ethereum-sepolia-rpc.publicnode.com", // keyless Sepolia (handles wide getLogs)
@@ -101,16 +142,36 @@ export function setReadProvider(_provider: unknown): void {
 }
 
 /**
- * Build the read transport: optional NEXT_PUBLIC_RPC_URL (front-ranked) → the
- * verified keyless fallback list for the configured chain. NEVER the wallet.
- * Builds the SAME transport whether or not a wallet is connected.
+ * Per-endpoint retry/backoff + timeout so a 429/5xx (the public-RPC rate-limit
+ * failure mode) is retried with backoff before viem `fallback()` rotates to the
+ * next URL. viem retries idempotent JSON-RPC requests on these; the timeout
+ * bounds a hung endpoint so rotation isn't blocked.
+ */
+const HTTP_OPTS = { retryCount: 4, retryDelay: 300, timeout: 12_000 } as const;
+
+/**
+ * Build the read transport. Resolution order:
+ *   1. /api/rpc same-origin proxy — only when NEXT_PUBLIC_RPC_PROXY is set (the
+ *      server-only key lives behind the route; 503s fall through gracefully).
+ *   2. optional public NEXT_PUBLIC_RPC_URL (keyless).
+ *   3. the verified keyless fallback list for the configured chain.
+ * NEVER the wallet. Builds the SAME transport whether or not a wallet is connected.
+ * All transports are wrapped in a single `fallback([...])` so any 429/5xx/timeout
+ * rotates to the next one.
  */
 function buildTransport() {
   const keyless = PUBLIC_FALLBACK_RPCS[EXPECTED_CHAIN_ID] ?? [];
   const urls = [...(PUBLIC_RPC_URL ? [PUBLIC_RPC_URL] : []), ...keyless];
+  const transports = urls.map((u) => http(u, HTTP_OPTS));
+  // Front-rank the same-origin proxy when the owner opted in. Same-origin → no
+  // CORS, covered by CSP `connect-src 'self'`. If the route 503s (RPC_PROXY_URL
+  // unset on the server), viem rotates to the keyless list below.
+  if (RPC_PROXY_ENABLED) {
+    transports.unshift(http(RPC_PROXY_PATH, HTTP_OPTS));
+  }
   // viem `fallback` rotates to the next transport on error/timeout. If somehow
-  // no URL is known for the chain, fall back to viem's chain-default `http()`.
-  return urls.length > 0 ? fallback(urls.map((u) => http(u))) : http();
+  // no transport is known for the chain, fall back to viem's chain-default http().
+  return transports.length > 0 ? fallback(transports) : http(undefined, HTTP_OPTS);
 }
 
 /**
@@ -123,6 +184,9 @@ export function getPublicClient() {
     _publicClient = createPublicClient({
       chain: CHAIN,
       transport: buildTransport(),
+      // Request coalescing: collapse the per-render burst of readContract calls
+      // into a few Multicall3 calls, so read-heavy pages don't 429 free RPCs.
+      batch: { multicall: true },
     });
   }
   return _publicClient;

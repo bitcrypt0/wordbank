@@ -12,6 +12,8 @@
     "sync-registry": "hardhat run scripts/02b-sync-registry.ts",
     "lock-liquidity": "hardhat run scripts/04-lock-liquidity.ts",
     "enable-trading": "hardhat run scripts/05-enable-trading.ts",
+    "add-liquidity": "hardhat run scripts/06-add-liquidity.ts",
+    "remove-liquidity": "hardhat run scripts/07-remove-liquidity.ts",
     "seal-and-renounce": "hardhat run scripts/03-seal-and-renounce.ts",
     "verify-commands": "ts-node scripts/verify-commands.ts --print",
     "verify:mainnet": "ts-node scripts/verify-commands.ts --network mainnet",

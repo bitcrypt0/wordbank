@@ -320,7 +320,10 @@ export function useGameState() {
   const sentences = useChainData<SentenceState>(
     (client) => fetchSentenceState(client, account),
     [account],
-    { refetchInterval: 60_000 },
+    // Stagger the heavier sentence/history read ~250ms behind the live read so
+    // the two don't fire their request bursts simultaneously and trip a public
+    // RPC's rate limiter on mount.
+    { refetchInterval: 60_000, initialDelayMs: 250 },
   );
 
   const refetch = () => {

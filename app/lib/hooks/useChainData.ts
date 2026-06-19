@@ -28,6 +28,12 @@ interface Options {
   refetchInterval?: number;
   /** When false, the fetcher is not run (e.g. gated on a connected account). */
   enabled?: boolean;
+  /**
+   * Delay (ms) before the FIRST fetch only — used to stagger two reads that
+   * mount together so they don't fire their request bursts simultaneously and
+   * trip a public RPC's rate limiter. Subsequent refetches are immediate.
+   */
+  initialDelayMs?: number;
 }
 
 /**
@@ -42,7 +48,7 @@ export function useChainData<T>(
   deps: unknown[] = [],
   options: Options = {},
 ): ReadResult<T> {
-  const { refetchInterval = 15_000, enabled = true } = options;
+  const { refetchInterval = 15_000, enabled = true, initialDelayMs = 0 } = options;
   const { account, chainId } = useWallet();
   const [data, setData] = useState<T | null>(null);
   const [status, setStatus] = useState<ReadStatus>("loading");
@@ -52,6 +58,8 @@ export function useChainData<T>(
   // Keep the latest fetcher without making it a re-run trigger.
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
+  // After the very first run, drop any stagger delay so refetches are immediate.
+  const hasRunRef = useRef(false);
 
   const refetch = useCallback(() => setTick((t) => t + 1), []);
 
@@ -62,31 +70,45 @@ export function useChainData<T>(
       return;
     }
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     // Don't blank the screen on background refetches — only show the skeleton
     // the first time (no data yet).
     setStatus((prev) => (data === null ? "loading" : prev));
-    fetcherRef.current(getPublicClient() as unknown as PublicClient)
-      .then((result) => {
-        if (cancelled) return;
-        setData(result);
-        setStatus("loaded");
-        setError(null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        if (err instanceof NotDeployedError) {
-          setStatus("pending");
+
+    const run = () => {
+      hasRunRef.current = true;
+      fetcherRef.current(getPublicClient() as unknown as PublicClient)
+        .then((result) => {
+          if (cancelled) return;
+          setData(result);
+          setStatus("loaded");
           setError(null);
-          return;
-        }
-        setStatus("error");
-        setError(err?.shortMessage ?? err?.message ?? "Read failed.");
-      });
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          if (err instanceof NotDeployedError) {
+            setStatus("pending");
+            setError(null);
+            return;
+          }
+          setStatus("error");
+          setError(err?.shortMessage ?? err?.message ?? "Read failed.");
+        });
+    };
+
+    // Stagger only the first fetch (so two reads mounting together don't burst
+    // simultaneously); refetches after that run immediately.
+    if (initialDelayMs > 0 && !hasRunRef.current) {
+      timer = setTimeout(run, initialDelayMs);
+    } else {
+      run();
+    }
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, account, chainId, tick, ...deps]);
+  }, [enabled, account, chainId, tick, initialDelayMs, ...deps]);
 
   // Background polling for freshness.
   useEffect(() => {

@@ -57,3 +57,10 @@ audit/
 *OVERSEER_REVIEW*
 INIT_PROMPT*
 DESIGN_NOTES*
+
+deploy/scripts/06-add-liquidity.ts
+deploy/scripts/07-remove-liquidity.ts
+script/06_AddLiquidity.s.sol
+script/07_RemoveLiquidity.s.sol
+test/fork/AddRemoveLiquidity.t.sol
+test/integration/AddRemoveLiquidityDepth.t.sol

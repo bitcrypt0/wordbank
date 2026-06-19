@@ -464,6 +464,63 @@ It flips back to 3-way the next time an unbind frees excess. Both split configs 
 and tunable forever; you never need to act for any of this — `flush()` and `executeBuyback()` are
 permissionless and keeper-run. (Aligns with architecture §6 and WHITEPAPER §10.)
 
+## If buybacks won't run: temporarily add liquidity (add → run buybacks → remove)
+
+**Symptom.** A keeper calls `executeBuyback` and it reverts `SlippageExceeded`. This happens
+when the pool is **too thin**: the buyback's own price impact pushes the ETH cost past the
+BurnEngine's slippage guard (≤ 5%), so the swap is rejected to protect the protocol from a bad
+fill. Even the engine's smallest spend (0.1 ETH) can over-impact a shallow pool.
+
+**Fix.** Temporarily **deepen the pool** with your own liquidity so a 0.1 ETH buyback stays
+inside tolerance, run the buybacks you need, then **pull that liquidity back out**. Two scripts
+do this, and they are deliberately kept separate from the locked seed position:
+
+| Step | Script | npm command | What it does |
+|---|---|---|---|
+| add | `06-add-liquidity.ts` | `npm run add-liquidity` | Mints a NEW full-range position on the existing pool from your ETH + WORD. **This position is yours and is NOT locked** — it stays fully withdrawable. Its id is recorded under `extraLiquidityPositionId` (kept separate from the locked seed `positionTokenId`). |
+| remove | `07-remove-liquidity.ts` | `npm run remove-liquidity` | Decreases that extra position to zero and burns it, returning the ETH + WORD **plus any LP fees it earned** to your wallet. Refuses to touch the locked seed position. Clears the recorded id. |
+
+> **This does NOT weaken the LP lock.** The extra position is a *second*, separate position that
+> never enters the LPLocker. Your locked seed liquidity (`positionTokenId`, the one published in
+> your lock claim) is untouched the entire time — script 07 hard-refuses to act on it. Add/remove
+> liquidity also does **not** trigger the 1% FeeHook skim (the hook only fires on swaps), so there
+> is no fee on either op.
+
+**You supply the WORD yourself.** Adding balanced liquidity at the current price needs **both**
+ETH and WORD in roughly the pool's current ratio. The owner sources the WORD (e.g. from collected
+LP fees via `LPLocker.collectFees`, or any WORD you hold) into the deployer/admin wallet first.
+`06-add-liquidity` **checks your ETH + WORD balance up front** and aborts with a clear message if
+you're short, rather than failing mid-transaction. It sizes liquidity to whichever side binds and
+sweeps the unused remainder of the other side back to you.
+
+**The flow, step by step:**
+
+1. Put the WORD you want to add into the deployer wallet, and decide how much ETH + WORD to add
+   (more depth = more buyback headroom; you get it all back on remove).
+2. Set the two env vars (in `deploy/.env` or inline) and run the add:
+
+   ```
+   ETH_LIQUIDITY_ADD=2000000000000000000      # 2 ETH, in wei
+   WORD_LIQUIDITY_ADD=2000000000000000000000  # 2,000 WORD, in wei (you source this)
+   npm run add-liquidity                       # add 06; prints the new position id + pool depth
+   ```
+
+3. Run your buybacks — the keeper calls `executeBuyback` as normal; they now clear the guard.
+   (If the pool is *very* thin you may also widen the tolerance toward the 5% ceiling with
+   `BurnEngine.setMaxSlippageBps` up to 500 — but deeper liquidity is the cleaner lever.)
+4. When done, remove the extra depth and take everything back:
+
+   ```
+   npm run remove-liquidity                    # remove 07; returns ETH + WORD + LP fees, burns the position
+   ```
+
+**Idempotent + resumable.** `06` refuses to mint a second extra position if one is already
+recorded (remove it first to re-add at a new size); `07` is a no-op if there's nothing to remove.
+The forge mirrors are `script/06_AddLiquidity.s.sol` / `script/07_RemoveLiquidity.s.sol` (they
+keep no on-disk ledger, so 06 **prints** the new tokenId and you pass it to 07 as
+`POSITION_TOKEN_ID`, plus the locked id as `LOCKED_POSITION_TOKEN_ID` for the refuse-if-equal
+guard).
+
 ## If something goes wrong mid-Phase 2
 
 **First resort: just re-run the same command.** All three scripts are resumable/idempotent —
