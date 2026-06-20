@@ -50,8 +50,9 @@
  * "Wrong network" is anything other than the configured chain; the one-click
  * switch targets it. Injected-only wallet rules unchanged.
  */
-import { createPublicClient, fallback, http, type Chain } from "viem";
+import { createPublicClient, custom, fallback, http, type Chain } from "viem";
 import { mainnet, sepolia } from "viem/chains";
+import type { Eip1193Provider } from "@/lib/wallet/types";
 
 /** Supported chains, keyed by id. Add more here if a new network is rehearsed. */
 const SUPPORTED: Record<number, Chain> = {
@@ -150,16 +151,25 @@ export function setReadProvider(_provider: unknown): void {
 const HTTP_OPTS = { retryCount: 4, retryDelay: 300, timeout: 12_000 } as const;
 
 /**
- * Build the read transport. Resolution order:
- *   1. /api/rpc same-origin proxy — only when NEXT_PUBLIC_RPC_PROXY is set (the
- *      server-only key lives behind the route; 503s fall through gracefully).
- *   2. optional public NEXT_PUBLIC_RPC_URL (keyless).
- *   3. the verified keyless fallback list for the configured chain.
- * NEVER the wallet. Builds the SAME transport whether or not a wallet is connected.
- * All transports are wrapped in a single `fallback([...])` so any 429/5xx/timeout
- * rotates to the next one.
+ * Read-client request coalescing. MUST be an OBJECT with an explicit batchSize:
+ * `multicall: true` (a boolean) makes viem fall back to its 1024-BYTE default
+ * chunk size, which shreds a single 400-call multicall into ~15 separate eth_calls
+ * (measured). Through the /api/rpc → Alchemy proxy hop, that turned the Dashboard's
+ * ownerOf sweep + per-token reads into dozens of 1-3s requests. A large byte budget
+ * lets a whole 400-id batch ride in ONE aggregate3 call (~15x fewer requests).
+ * `wait` is the coalescing window for separate readContract calls fired in the same
+ * tick. batchSize is in BYTES of calldata, not number of calls. (perf fix 2026-06-20)
  */
-function buildTransport() {
+const READ_BATCH = { multicall: { batchSize: 102_400, wait: 16 } } as const;
+
+/**
+ * The backup HTTP transports, best-first: same-origin /api/rpc proxy (when opted
+ * in) → optional public NEXT_PUBLIC_RPC_URL → the verified keyless fallback list.
+ * These NEVER ride the wallet. Returned as an array so callers can either wrap it
+ * directly (the default public client) or front-rank the wallet provider ahead of
+ * it (the Dashboard's wallet-preferring client — see getWalletPreferringClient).
+ */
+function backupTransports() {
   const keyless = PUBLIC_FALLBACK_RPCS[EXPECTED_CHAIN_ID] ?? [];
   const urls = [...(PUBLIC_RPC_URL ? [PUBLIC_RPC_URL] : []), ...keyless];
   const transports = urls.map((u) => http(u, HTTP_OPTS));
@@ -169,6 +179,16 @@ function buildTransport() {
   if (RPC_PROXY_ENABLED) {
     transports.unshift(http(RPC_PROXY_PATH, HTTP_OPTS));
   }
+  return transports;
+}
+
+/**
+ * Build the default read transport (NEVER the wallet). Same transport whether or
+ * not a wallet is connected; wrapped in a single `fallback([...])` so any
+ * 429/5xx/timeout rotates to the next one.
+ */
+function buildTransport() {
+  const transports = backupTransports();
   // viem `fallback` rotates to the next transport on error/timeout. If somehow
   // no transport is known for the chain, fall back to viem's chain-default http().
   return transports.length > 0 ? fallback(transports) : http(undefined, HTTP_OPTS);
@@ -184,25 +204,48 @@ export function getPublicClient() {
     _publicClient = createPublicClient({
       chain: CHAIN,
       transport: buildTransport(),
-      // Request coalescing: collapse the per-render burst of readContract calls
-      // into a few Multicall3 calls, so read-heavy pages don't 429 free RPCs.
-      //
-      // CRITICAL (perf fix 2026-06-20): pass an OBJECT with an explicit batchSize.
-      // `multicall: true` (a boolean) makes viem fall back to its 1024-BYTE default
-      // chunk size, which shreds a single 400-call multicall into ~15 separate
-      // eth_calls (measured). Every one is its own round-trip — and through the
-      // /api/rpc → Alchemy proxy hop that turned the Dashboard's ownerOf sweep +
-      // per-token reads into dozens of 1-3s requests. A large byte budget lets a
-      // whole 400-id batch ride in ONE aggregate3 call (~15x fewer requests).
-      // `wait` is the coalescing window for separate readContract calls fired in
-      // the same tick. batchSize is in BYTES of calldata, not number of calls.
-      batch: { multicall: { batchSize: 102_400, wait: 16 } },
+      batch: READ_BATCH,
     });
   }
   return _publicClient;
 }
 
-/** Reads never ride the wallet provider; kept for backward compat (always false). */
-export function isUsingWalletRpc(): boolean {
-  return false;
+/**
+ * Read client that PREFERS the connected wallet's own RPC, then falls back to the
+ * normal public/proxy transport. Used ONLY by the Dashboard (gated on a connected
+ * account anyway).
+ *
+ * WHY: the connected wallet talks DIRECTLY to its configured RPC (e.g. the user's
+ * own Alchemy / the wallet's Infura) over EIP-1193 — no same-origin /api/rpc hop,
+ * so it skips the Vercel serverless round-trip that dominates read latency (~1-3s
+ * per call even for a tiny eth_call). The earlier reason reads were decoupled from
+ * the wallet — getLogs-based discovery failing on restricted wallet RPCs — no
+ * longer applies: owned-NFT discovery is now log-free ownerOf enumeration, which
+ * every RPC serves. Read methods (eth_call/getLogs/chainId) never prompt the user.
+ *
+ * SAFETY: the wallet transport is front-ranked ONLY when the wallet is connected
+ * AND on the configured chain (else reads would hit the wrong network) — otherwise
+ * this returns the plain public client. And it is only FRONT-RANKED: viem
+ * `fallback()` rotates to the public/proxy transports if a wallet RPC call fails
+ * (e.g. a wallet RPC that caps eth_getLogs), so correctness never depends on the
+ * wallet endpoint. Not cached — it depends on the live provider identity.
+ */
+export function getWalletPreferringClient(
+  provider: Eip1193Provider | null,
+  walletChainId: number | null,
+) {
+  if (!provider || walletChainId !== EXPECTED_CHAIN_ID) return getPublicClient();
+  return createPublicClient({
+    chain: CHAIN,
+    transport: fallback([
+      custom(provider as Parameters<typeof custom>[0]),
+      ...backupTransports(),
+    ]),
+    batch: READ_BATCH,
+  });
+}
+
+/** True when the Dashboard's wallet-preferring client would ride the wallet RPC. */
+export function isUsingWalletRpc(provider?: unknown, walletChainId?: number | null): boolean {
+  return !!provider && walletChainId === EXPECTED_CHAIN_ID;
 }

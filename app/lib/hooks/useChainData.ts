@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PublicClient } from "viem";
-import { getPublicClient } from "@/lib/contracts/chain";
+import { getPublicClient, getWalletPreferringClient } from "@/lib/contracts/chain";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 
 /** Thrown by a fetcher when a needed contract has no deployed address yet. */
@@ -34,6 +34,14 @@ interface Options {
    * trip a public RPC's rate limiter. Subsequent refetches are immediate.
    */
   initialDelayMs?: number;
+  /**
+   * Prefer the connected wallet's own RPC (direct EIP-1193, no /api/rpc proxy
+   * hop) when the wallet is connected AND on the configured chain — falling back
+   * to the public/proxy transport otherwise. Used by connected-only pages (the
+   * Dashboard) to skip the Vercel serverless round-trip that dominates read
+   * latency. Default false → the shared public client, identical to before.
+   */
+  preferWalletRpc?: boolean;
 }
 
 /**
@@ -48,8 +56,8 @@ export function useChainData<T>(
   deps: unknown[] = [],
   options: Options = {},
 ): ReadResult<T> {
-  const { refetchInterval = 15_000, enabled = true, initialDelayMs = 0 } = options;
-  const { account, chainId } = useWallet();
+  const { refetchInterval = 15_000, enabled = true, initialDelayMs = 0, preferWalletRpc = false } = options;
+  const { account, chainId, provider } = useWallet();
   const [data, setData] = useState<T | null>(null);
   const [status, setStatus] = useState<ReadStatus>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +85,14 @@ export function useChainData<T>(
 
     const run = () => {
       hasRunRef.current = true;
-      fetcherRef.current(getPublicClient() as unknown as PublicClient)
+      // Dashboard (preferWalletRpc) reads ride the connected wallet's RPC directly
+      // when it's on the configured chain — no /api/rpc proxy hop. Everything else
+      // uses the shared public client. getWalletPreferringClient falls back to the
+      // public client when there's no wallet or it's on the wrong network.
+      const client = preferWalletRpc
+        ? getWalletPreferringClient(provider, chainId)
+        : getPublicClient();
+      fetcherRef.current(client as unknown as PublicClient)
         .then((result) => {
           if (cancelled) return;
           setData(result);
@@ -108,7 +123,7 @@ export function useChainData<T>(
       if (timer) clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, account, chainId, tick, initialDelayMs, ...deps]);
+  }, [enabled, account, chainId, tick, initialDelayMs, preferWalletRpc, provider, ...deps]);
 
   // Background polling for freshness.
   useEffect(() => {

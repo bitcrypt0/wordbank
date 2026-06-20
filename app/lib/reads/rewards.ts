@@ -226,6 +226,10 @@ export function useRewardsData() {
       return { tokens, pendingTotalWei, lifetimeClaimedWei, rewardsBps, expectedCount, partial, bountyScanComplete, unbindAvailable };
     },
     [account],
-    { refetchInterval: 30_000 },
+    // preferWalletRpc: the Dashboard is connected-only, so read through the
+    // wallet's own RPC directly (no /api/rpc proxy hop = no Vercel serverless
+    // latency). Falls back to the public/proxy client if the wallet is on the
+    // wrong network. This is the only page that opts in.
+    { refetchInterval: 30_000, preferWalletRpc: true },
   );
 }
