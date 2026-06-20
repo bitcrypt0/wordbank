@@ -72,6 +72,19 @@ export const EXPECTED_CHAIN_ID =
 export const CHAIN: Chain = SUPPORTED[EXPECTED_CHAIN_ID] ?? mainnet;
 
 /**
+ * Block the WORDBANK contracts went live (the first WordBank mint Transfer,
+ * verified on-chain 2026-06-20). Used as the FLOOR for whole-history log scans
+ * (e.g. lifetime-claimed totals) so they sweep ~the collection's age instead of a
+ * blanket 250k-block lookback that wastes ~24 empty windows on pre-deploy blocks.
+ * undefined for chains where it's unknown (e.g. a Sepolia rehearsal) → callers use
+ * their default lookback.
+ */
+const DEPLOY_BLOCK_BY_CHAIN: Record<number, bigint> = {
+  [mainnet.id]: 25_330_799n,
+};
+export const DEPLOY_BLOCK: bigint | undefined = DEPLOY_BLOCK_BY_CHAIN[EXPECTED_CHAIN_ID];
+
+/**
  * OPTIONAL public fallback RPC, front-ranked ahead of the keyless list below.
  * MUST stay a PUBLIC/keyless URL — `NEXT_PUBLIC_*` is shipped to every visitor's
  * browser, so an Alchemy/Infura key here would be exposed. Empty/blank = unset.

@@ -8,9 +8,10 @@ import {
   bountyEngineAbi,
 } from "@/lib/contracts/abis";
 import { isDeployed, requireAddress } from "@/lib/contracts/addresses";
+import { DEPLOY_BLOCK } from "@/lib/contracts/chain";
 import { NotDeployedError, useChainData } from "@/lib/hooks/useChainData";
 import { getLogsChunked } from "@/lib/events/logs";
-import { getRecentSentences } from "@/lib/reads/bounties";
+import { getRecentSentencesByIndex } from "@/lib/reads/bounties";
 import { enumerateOwnedTokens } from "@/lib/reads/ownerEnum";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 
@@ -34,7 +35,6 @@ export interface RewardRow {
 export interface RewardsData {
   tokens: RewardRow[];
   pendingTotalWei: bigint;
-  lifetimeClaimedWei: bigint;
   rewardsBps: number;
   /** balanceOf(account) — the number the wallet should own. */
   expectedCount: number;
@@ -92,7 +92,7 @@ export function useRewardsData() {
         .catch(() => false);
 
       if (!account) {
-        return { tokens: [], pendingTotalWei: 0n, lifetimeClaimedWei: 0n, rewardsBps, expectedCount: 0, partial: false, bountyScanComplete: true, unbindAvailable };
+        return { tokens: [], pendingTotalWei: 0n, rewardsBps, expectedCount: 0, partial: false, bountyScanComplete: true, unbindAvailable };
       }
 
       // 1-2) Discover owned tokenIds WITHOUT eth_getLogs (restricted public RPCs
@@ -102,7 +102,7 @@ export function useRewardsData() {
       //       by every RPC. See lib/reads/ownerEnum.ts.
       const { owned, expectedCount, partial: enumPartial } = await enumerateOwnedTokens(client, bank, account);
       if (expectedCount === 0) {
-        return { tokens: [], pendingTotalWei: 0n, lifetimeClaimedWei: 0n, rewardsBps, expectedCount: 0, partial: false, bountyScanComplete: true, unbindAvailable };
+        return { tokens: [], pendingTotalWei: 0n, rewardsBps, expectedCount: 0, partial: false, bountyScanComplete: true, unbindAvailable };
       }
       let partial = enumPartial;
 
@@ -130,16 +130,19 @@ export function useRewardsData() {
 
       // Bounty scan: discover which owned words hold an unclaimed, still-claimable
       // bounty share — these would be FORFEITED on unbind, so the confirm must
-      // name them. One log scan of recent sentences (shared), then per-token
-      // isClaimable checks restricted to tokens that appeared in a sentence.
-      // If BountyEngine isn't deployed or the scan throws, fall back to a generic
-      // warning (bountyScanComplete=false) rather than hide the risk.
+      // name them. Recent sentences come from the LOG-FREE index path
+      // (getRecentSentencesByIndex: nextEventId + eventInfo reads), NOT a wide
+      // SentenceGenerated getLogs lookback — perf fix 2026-06-20: that lookback was
+      // ~14 sequential getLogs windows blocking the whole Dashboard render. Then
+      // per-token isClaimable checks restricted to tokens that appeared in a
+      // sentence. If BountyEngine isn't deployed or the scan throws, fall back to a
+      // generic warning (bountyScanComplete=false) rather than hide the risk.
       const bountyShareByToken = new Map<number, bigint>();
       let bountyScanComplete = true;
       if (isDeployed("bountyEngine")) {
         try {
           const bountyEngine = requireAddress("bountyEngine");
-          const recent = await getRecentSentences(client);
+          const recent = await getRecentSentencesByIndex(client, 12);
           // Flatten EVERY (event, owned-token) claimable check into ONE multicall
           // rather than a sequential `claimableForToken` per token (perf fix
           // 2026-06-20: the per-token loop was N serial RPC round-trips on the
@@ -201,17 +204,54 @@ export function useRewardsData() {
         });
       });
 
-      // 4) Lifetime claimed (resilient; partial-tolerant). This is the only
-      //    remaining getLogs path here and it must NEVER blank the NFT grid: the
-      //    token list above is already built from the log-free ownerOf
-      //    enumeration. If getLogs is refused outright by a restricted RPC, we
-      //    catch it, mark the result partial, and still return the populated grid.
+      // NOTE: lifetime-claimed is NOT computed here. It needs a Claimed-event
+      // getLogs aggregation (no on-chain getter), which is the slowest read on
+      // this page — so it lives in its own background hook (useLifetimeClaimed)
+      // and never blocks the NFT grid. See below.
+      return { tokens, pendingTotalWei, rewardsBps, expectedCount, partial, bountyScanComplete, unbindAvailable };
+    },
+    [account],
+    // preferWalletRpc: the Dashboard is connected-only, so read through the
+    // wallet's own RPC directly (no /api/rpc proxy hop = no Vercel serverless
+    // latency). Falls back to the public/proxy client if the wallet is on the
+    // wrong network. This is the only page that opts in.
+    { refetchInterval: 30_000, preferWalletRpc: true },
+  );
+}
+
+export interface LifetimeClaimed {
+  /** Total ETH this wallet has ever received from rewards claims (Claimed events). */
+  lifetimeClaimedWei: bigint;
+  /** True when the scan couldn't return the full history (rate limit / RPC gap). */
+  partial: boolean;
+}
+
+/**
+ * Lifetime-claimed total for the connected wallet — loaded SEPARATELY from the
+ * grid so the slow log aggregation never delays NFT display. There is no on-chain
+ * getter (RewardsDistributor only emits `Claimed`), so this sums Claimed-event
+ * amounts to the account. Bounded by the contracts' DEPLOY_BLOCK so it scans ~the
+ * collection's age, not a blanket 250k-block lookback. Reads via the wallet RPC
+ * (preferWalletRpc) like the grid. Returns 0 (not an error) on a connected wallet
+ * with no claims, and is partial-tolerant on a restricted RPC.
+ */
+export function useLifetimeClaimed() {
+  const { account } = useWallet();
+
+  return useChainData<LifetimeClaimed>(
+    async (client: PublicClient) => {
+      if (!isDeployed("rewardsDistributor")) throw new NotDeployedError();
+      if (!account) return { lifetimeClaimedWei: 0n, partial: false };
+      const rd = requireAddress("rewardsDistributor");
+
+      let partial = false;
       let lifetimeClaimedWei = 0n;
       try {
         const claimedLogs = await getLogsChunked(client, {
           address: rd,
           event: CLAIMED_EVENT,
           args: { to: account },
+          fromBlock: DEPLOY_BLOCK, // scan from launch, not a blanket lookback
           onGap: () => {
             partial = true;
           },
@@ -220,16 +260,11 @@ export function useRewardsData() {
           lifetimeClaimedWei += (log as unknown as { args: { amount: bigint } }).args.amount;
         }
       } catch {
-        partial = true; // couldn't total lifetime claimed — grid still stands
+        partial = true; // couldn't total lifetime claimed — the grid stands alone
       }
-
-      return { tokens, pendingTotalWei, lifetimeClaimedWei, rewardsBps, expectedCount, partial, bountyScanComplete, unbindAvailable };
+      return { lifetimeClaimedWei, partial };
     },
     [account],
-    // preferWalletRpc: the Dashboard is connected-only, so read through the
-    // wallet's own RPC directly (no /api/rpc proxy hop = no Vercel serverless
-    // latency). Falls back to the public/proxy client if the wallet is on the
-    // wrong network. This is the only page that opts in.
-    { refetchInterval: 30_000, preferWalletRpc: true },
+    { refetchInterval: 60_000, preferWalletRpc: true },
   );
 }
