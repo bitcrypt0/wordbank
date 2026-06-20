@@ -43,6 +43,17 @@ export interface HistoryRow {
   swept: boolean;
 }
 
+/** Full per-word detail for ANY past event — loaded on demand when a history row
+ *  is expanded (winner addresses, claim status, claimable shares). */
+export interface SentenceDetail {
+  eventId: number;
+  words: WordStatus[];
+  sharePerWordWei: bigint;
+  amountWei: bigint;
+  deadline: number;
+  swept: boolean;
+}
+
 export interface GameState {
   phase: GamePhase;
   registryCursor: number;
@@ -344,4 +355,85 @@ export function useGameState() {
     : null;
 
   return { data, status: live.status, error: live.error, refetch };
+}
+
+/**
+ * Full per-word detail for ANY past event — winner (owner) addresses, claim
+ * status, claimable shares. Self-contained: eventInfo → wordOf → per-token status,
+ * all multicalls, no log scans. Used by the expandable "Past sentences" rows so a
+ * still-open older sentence (claim windows overlap — daily draws, 7-day windows)
+ * can be inspected and CLAIMED, not just the single newest one.
+ */
+export async function fetchSentenceDetail(
+  client: PublicClient,
+  eventId: number,
+  account: `0x${string}` | null,
+): Promise<SentenceDetail> {
+  const be = requireAddress("bountyEngine");
+  const bank = requireAddress("wordBank");
+
+  const info = (await client.readContract({
+    address: be,
+    abi: bountyEngineAbi,
+    functionName: "eventInfo",
+    args: [BigInt(eventId)],
+  })) as readonly [readonly bigint[], bigint, bigint, boolean];
+  const tokenIds = info[0].map(Number);
+  const sharePerWordWei = info[1];
+  const deadline = Number(info[2]);
+  const swept = info[3];
+  if (tokenIds.length === 0) {
+    return { eventId, words: [], sharePerWordWei, amountWei: 0n, deadline, swept };
+  }
+
+  const [wordReads, perToken] = await Promise.all([
+    client.multicall({
+      allowFailure: true,
+      contracts: tokenIds.map((id) => ({
+        address: bank,
+        abi: wordBankAbi,
+        functionName: "wordOf" as const,
+        args: [BigInt(id)],
+      })),
+    }),
+    client.multicall({
+      allowFailure: true,
+      contracts: tokenIds.flatMap((id) => [
+        { address: be, abi: bountyEngineAbi, functionName: "isClaimable" as const, args: [BigInt(eventId), BigInt(id)] },
+        { address: bank, abi: wordBankAbi, functionName: "isAlive" as const, args: [BigInt(id)] },
+        { address: bank, abi: wordBankAbi, functionName: "ownerOf" as const, args: [BigInt(id)] },
+        { address: be, abi: bountyEngineAbi, functionName: "claimed" as const, args: [BigInt(eventId), BigInt(id)] },
+      ]),
+    }),
+  ]);
+
+  const words: WordStatus[] = tokenIds.map((id, i) => {
+    const w = wordReads[i];
+    const claimableRes = perToken[i * 4];
+    const aliveRes = perToken[i * 4 + 1];
+    const ownerRes = perToken[i * 4 + 2];
+    const claimedRes = perToken[i * 4 + 3];
+    const owner = ownerRes.status === "success" ? String(ownerRes.result) : null;
+    return {
+      tokenId: id,
+      word: w.status === "success" ? String(w.result) : "",
+      alive: aliveRes.status === "success" && aliveRes.result === true,
+      owner,
+      claimable: claimableRes.status === "success" && claimableRes.result === true,
+      claimed: claimedRes.status === "success" && claimedRes.result === true,
+      yours: !!account && !!owner && owner.toLowerCase() === account.toLowerCase(),
+    };
+  });
+
+  return { eventId, words, sharePerWordWei, amountWei: sharePerWordWei * BigInt(tokenIds.length), deadline, swept };
+}
+
+/** On-demand detail for one past event; only fetches when `enabled` (row open). */
+export function useSentenceDetail(eventId: number | null, enabled: boolean) {
+  const { account } = useWallet();
+  return useChainData<SentenceDetail | null>(
+    async (client: PublicClient) => (eventId == null ? null : fetchSentenceDetail(client, eventId, account)),
+    [eventId, account],
+    { refetchInterval: 0, enabled: enabled && eventId != null },
+  );
 }

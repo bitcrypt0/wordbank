@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useWallet } from "@/lib/wallet/WalletProvider";
-import { useRewardsData, useLifetimeClaimed, type RewardRow } from "@/lib/reads/rewards";
+import { useRewardsData, type RewardRow } from "@/lib/reads/rewards";
 import { requireAddress } from "@/lib/contracts/addresses";
 import { rewardsDistributorAbi } from "@/lib/contracts/abis";
 import { TokenArt } from "@/components/TokenArt";
@@ -17,8 +17,6 @@ export default function DashboardPage() {
   const { account } = useWallet();
   const router = useRouter();
   const { data, status, refetch } = useRewardsData();
-  // Loaded independently so the slow Claimed-log aggregation never delays the grid.
-  const { data: lifetime } = useLifetimeClaimed();
   const [selected, setSelected] = useState<number[]>([]);
 
   const owned = data?.tokens ?? [];
@@ -95,11 +93,6 @@ export default function DashboardPage() {
               value={`${formatEth(data?.pendingTotalWei ?? 0n)} ETH`}
               detail={`${claimable.length} with rewards to claim`}
               tone={(data?.pendingTotalWei ?? 0n) > 0n ? "ok" : undefined}
-            />
-            <Stat
-              label="Lifetime claimed"
-              value={lifetime ? `${formatEth(lifetime.lifetimeClaimedWei)} ETH` : "…"}
-              detail="all-time, this wallet's words"
             />
             <Stat
               label="Stream"

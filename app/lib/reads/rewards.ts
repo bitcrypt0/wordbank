@@ -1,6 +1,6 @@
 "use client";
 
-import { getAbiItem, type AbiEvent, type PublicClient } from "viem";
+import { type PublicClient } from "viem";
 import {
   wordBankAbi,
   rewardsDistributorAbi,
@@ -8,14 +8,10 @@ import {
   bountyEngineAbi,
 } from "@/lib/contracts/abis";
 import { isDeployed, requireAddress } from "@/lib/contracts/addresses";
-import { DEPLOY_BLOCK } from "@/lib/contracts/chain";
 import { NotDeployedError, useChainData } from "@/lib/hooks/useChainData";
-import { getLogsChunked } from "@/lib/events/logs";
 import { getRecentSentencesByIndex } from "@/lib/reads/bounties";
 import { enumerateOwnedTokens } from "@/lib/reads/ownerEnum";
 import { useWallet } from "@/lib/wallet/WalletProvider";
-
-const CLAIMED_EVENT = getAbiItem({ abi: rewardsDistributorAbi, name: "Claimed" }) as AbiEvent;
 
 /** Multicall batch size — keeps each aggregate eth_call well within RPC limits. */
 const MULTICALL_BATCH = 200;
@@ -204,10 +200,6 @@ export function useRewardsData() {
         });
       });
 
-      // NOTE: lifetime-claimed is NOT computed here. It needs a Claimed-event
-      // getLogs aggregation (no on-chain getter), which is the slowest read on
-      // this page — so it lives in its own background hook (useLifetimeClaimed)
-      // and never blocks the NFT grid. See below.
       return { tokens, pendingTotalWei, rewardsBps, expectedCount, partial, bountyScanComplete, unbindAvailable };
     },
     [account],
@@ -216,55 +208,5 @@ export function useRewardsData() {
     // latency). Falls back to the public/proxy client if the wallet is on the
     // wrong network. This is the only page that opts in.
     { refetchInterval: 30_000, preferWalletRpc: true },
-  );
-}
-
-export interface LifetimeClaimed {
-  /** Total ETH this wallet has ever received from rewards claims (Claimed events). */
-  lifetimeClaimedWei: bigint;
-  /** True when the scan couldn't return the full history (rate limit / RPC gap). */
-  partial: boolean;
-}
-
-/**
- * Lifetime-claimed total for the connected wallet — loaded SEPARATELY from the
- * grid so the slow log aggregation never delays NFT display. There is no on-chain
- * getter (RewardsDistributor only emits `Claimed`), so this sums Claimed-event
- * amounts to the account. Bounded by the contracts' DEPLOY_BLOCK so it scans ~the
- * collection's age, not a blanket 250k-block lookback. Reads via the wallet RPC
- * (preferWalletRpc) like the grid. Returns 0 (not an error) on a connected wallet
- * with no claims, and is partial-tolerant on a restricted RPC.
- */
-export function useLifetimeClaimed() {
-  const { account } = useWallet();
-
-  return useChainData<LifetimeClaimed>(
-    async (client: PublicClient) => {
-      if (!isDeployed("rewardsDistributor")) throw new NotDeployedError();
-      if (!account) return { lifetimeClaimedWei: 0n, partial: false };
-      const rd = requireAddress("rewardsDistributor");
-
-      let partial = false;
-      let lifetimeClaimedWei = 0n;
-      try {
-        const claimedLogs = await getLogsChunked(client, {
-          address: rd,
-          event: CLAIMED_EVENT,
-          args: { to: account },
-          fromBlock: DEPLOY_BLOCK, // scan from launch, not a blanket lookback
-          onGap: () => {
-            partial = true;
-          },
-        });
-        for (const log of claimedLogs) {
-          lifetimeClaimedWei += (log as unknown as { args: { amount: bigint } }).args.amount;
-        }
-      } catch {
-        partial = true; // couldn't total lifetime claimed — the grid stands alone
-      }
-      return { lifetimeClaimedWei, partial };
-    },
-    [account],
-    { refetchInterval: 60_000, preferWalletRpc: true },
   );
 }

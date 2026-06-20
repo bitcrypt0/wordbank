@@ -1,7 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { useGameState, type GameState, type RevealedSentence, type HistoryRow } from "@/lib/reads/game";
+import {
+  useGameState,
+  useSentenceDetail,
+  type GameState,
+  type RevealedSentence,
+  type HistoryRow,
+  type WordStatus,
+} from "@/lib/reads/game";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 import { requireAddress } from "@/lib/contracts/addresses";
 import { bountyEngineAbi } from "@/lib/contracts/abis";
@@ -59,7 +67,7 @@ export default function GamePage() {
             <Revealed g={g} ev={g.revealed} connected={!!account} refetch={refetch} />
           ) : null}
 
-          <History rows={g.history} now={g.blockTimestamp} refetch={refetch} />
+          <History rows={g.history} now={g.blockTimestamp} connected={!!account} refetch={refetch} />
         </>
       )}
     </div>
@@ -97,16 +105,24 @@ function PreStart({ g }: { g: GameState; refetch: () => void }) {
 
 /* ─────────────────────────── idle ─────────────────────────── */
 function Idle({ g, account, refetch }: { g: GameState; account: string | null; refetch: () => void }) {
-  const affordable = g.tiersWei.filter((t) => t <= g.freeTreasuryWei);
+  // A tier is affordable only if the treasury covers it PLUS its 2% reveal reward
+  // (mirrors BountyEngine: free >= tier + tier*REVEAL_REWARD_BPS/BPS).
+  const tierCost = (t: bigint) => t + (t * BigInt(g.revealRewardBps)) / 10_000n;
+  const affordable = g.tiersWei.filter((t) => tierCost(t) <= g.freeTreasuryWei);
+  // commit() gates on the CHEAPEST tier's full cost (tiers[0], sorted ascending).
+  const minCostWei = g.tiersWei.length > 0 ? tierCost(g.tiersWei[0]) : 0n;
+  const treasuryOk = g.tiersWei.length > 0 && g.freeTreasuryWei >= minCostWei;
   const cycleReady = g.blockTimestamp >= g.lastEventTimestamp + g.cycleLength;
-  const canCommit = g.holderBalance >= 1 && cycleReady;
+  const canCommit = g.holderBalance >= 1 && cycleReady && treasuryOk;
   const hint = !account
     ? undefined
     : g.holderBalance < 1
       ? "You need to hold a word to start the draw."
       : !cycleReady
         ? "The daily draw has already run this cycle."
-        : undefined;
+        : !treasuryOk
+          ? `The treasury can't fund a draw yet — it needs ${formatEth(minCostWei)} ETH (cheapest prize + reveal reward) and holds ${formatEth(g.freeTreasuryWei)}. It refills from swap fees.`
+          : undefined;
 
   return (
     <div className={styles.twoCol}>
@@ -239,6 +255,81 @@ function Expired({ refetch }: { g: GameState; refetch: () => void }) {
   );
 }
 
+/* ─────────────── shared per-word claim list ─────────────── */
+/** The winner/claim breakdown for one event — used by the live revealed sentence
+ *  AND each expanded past-sentence row. Shows each word's holder (winner) and
+ *  claim status, with a Claim button when the share is yours and still claimable. */
+function ClaimList({
+  eventId,
+  words,
+  sharePerWordWei,
+  connected,
+  refetch,
+}: {
+  eventId: number;
+  words: WordStatus[];
+  sharePerWordWei: bigint;
+  connected: boolean;
+  refetch: () => void;
+}) {
+  const yourIds = words.filter((w) => w.claimable && w.yours).map((w) => w.tokenId);
+  return (
+    <>
+      <ul className={styles.claimList}>
+        {words.map((w) => (
+          <li key={w.tokenId} className={styles.claimRow}>
+            <span className={styles.claimWord}>
+              {w.word}
+              <span className={`mono ${styles.claimId}`}>№{w.tokenId}</span>
+            </span>
+            <span className={styles.claimStatus}>
+              {w.claimed ? (
+                <span className={styles.claimedTag}>claimed ✓</span>
+              ) : !w.alive ? (
+                <span className={styles.forfeitTag}>word unbound — share forfeits</span>
+              ) : w.yours && w.claimable && connected ? (
+                <TxButton
+                  build={() => ({
+                    address: be(),
+                    abi: bountyEngineAbi,
+                    functionName: "claim",
+                    args: [BigInt(eventId), BigInt(w.tokenId)],
+                  })}
+                  onConfirmed={refetch}
+                  confirmedLabel="Claimed ✓"
+                >
+                  Claim {formatEth(sharePerWordWei)} ETH
+                </TxButton>
+              ) : (
+                <span className={styles.othersTag}>
+                  {w.yours ? "yours — connect to claim" : `held by ${shortAddress(w.owner ?? "")}`}
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {connected && yourIds.length > 1 ? (
+        <div className={styles.claimAll}>
+          <TxButton
+            build={() => ({
+              address: be(),
+              abi: bountyEngineAbi,
+              functionName: "claimMany",
+              args: [BigInt(eventId), yourIds.map((id) => BigInt(id))],
+            })}
+            onConfirmed={refetch}
+            confirmedLabel="Claimed ✓"
+          >
+            Claim all your shares — {formatEth(sharePerWordWei * BigInt(yourIds.length))} ETH
+          </TxButton>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 /* ─────────────── revealed — the signature screen ─────────────── */
 function Revealed({
   g,
@@ -251,8 +342,6 @@ function Revealed({
   connected: boolean;
   refetch: () => void;
 }) {
-  const yourIds = ev.words.filter((w) => w.claimable && w.yours).map((w) => w.tokenId);
-
   return (
     <section aria-labelledby="sentence-title">
       <div className={styles.stage}>
@@ -291,57 +380,13 @@ function Revealed({
           </div>
         </div>
 
-        <ul className={styles.claimList}>
-          {ev.words.map((w) => (
-            <li key={w.tokenId} className={styles.claimRow}>
-              <span className={styles.claimWord}>
-                {w.word}
-                <span className={`mono ${styles.claimId}`}>№{w.tokenId}</span>
-              </span>
-              <span className={styles.claimStatus}>
-                {w.claimed ? (
-                  <span className={styles.claimedTag}>claimed ✓</span>
-                ) : !w.alive ? (
-                  <span className={styles.forfeitTag}>word unbound — share forfeits</span>
-                ) : w.yours && w.claimable && connected ? (
-                  <TxButton
-                    build={() => ({
-                      address: be(),
-                      abi: bountyEngineAbi,
-                      functionName: "claim",
-                      args: [BigInt(ev.eventId), BigInt(w.tokenId)],
-                    })}
-                    onConfirmed={refetch}
-                    confirmedLabel="Claimed ✓"
-                  >
-                    Claim {formatEth(ev.sharePerWordWei)} ETH
-                  </TxButton>
-                ) : (
-                  <span className={styles.othersTag}>
-                    {w.yours ? "yours — connect to claim" : `held by ${shortAddress(w.owner ?? "")}`}
-                  </span>
-                )}
-              </span>
-            </li>
-          ))}
-        </ul>
-
-        {connected && yourIds.length > 1 ? (
-          <div className={styles.claimAll}>
-            <TxButton
-              build={() => ({
-                address: be(),
-                abi: bountyEngineAbi,
-                functionName: "claimMany",
-                args: [BigInt(ev.eventId), yourIds.map((id) => BigInt(id))],
-              })}
-              onConfirmed={refetch}
-              confirmedLabel="Claimed ✓"
-            >
-              Claim all your shares — {formatEth(ev.sharePerWordWei * BigInt(yourIds.length))} ETH
-            </TxButton>
-          </div>
-        ) : null}
+        <ClaimList
+          eventId={ev.eventId}
+          words={ev.words}
+          sharePerWordWei={ev.sharePerWordWei}
+          connected={connected}
+          refetch={refetch}
+        />
 
         <p className={styles.wiringNote}>
           ownership checked at claim time — buy a drawn word before the
@@ -354,7 +399,17 @@ function Revealed({
 }
 
 /* ─────────────────────── history ─────────────────────── */
-function History({ rows, now, refetch }: { rows: HistoryRow[]; now: number; refetch: () => void }) {
+function History({
+  rows,
+  now,
+  connected,
+  refetch,
+}: {
+  rows: HistoryRow[];
+  now: number;
+  connected: boolean;
+  refetch: () => void;
+}) {
   if (rows.length === 0) {
     return (
       <section className={styles.history}>
@@ -370,14 +425,28 @@ function History({ rows, now, refetch }: { rows: HistoryRow[]; now: number; refe
       <h2 className={styles.historyTitle}>Past sentences</h2>
       <ol className={styles.historyList}>
         {rows.map((ev) => (
-          <HistoryRowView key={ev.eventId} ev={ev} now={now} refetch={refetch} />
+          <HistoryRowView key={ev.eventId} ev={ev} now={now} connected={connected} refetch={refetch} />
         ))}
       </ol>
     </section>
   );
 }
 
-function HistoryRowView({ ev, now, refetch }: { ev: HistoryRow; now: number; refetch: () => void }) {
+function HistoryRowView({
+  ev,
+  now,
+  connected,
+  refetch,
+}: {
+  ev: HistoryRow;
+  now: number;
+  connected: boolean;
+  refetch: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  // Per-word detail (winner addresses, claim status, claimable shares) loads ONLY
+  // when the row is expanded — keeps the history list cheap for the common case.
+  const { data: detail, status: detailStatus } = useSentenceDetail(ev.eventId, open);
   const deadlinePassed = now >= ev.deadline;
   const status = ev.swept
     ? { label: "swept", tone: styles.statusSwept }
@@ -403,6 +472,14 @@ function HistoryRowView({ ev, now, refetch }: { ev: HistoryRow; now: number; ref
       <div className={styles.historyMeta}>
         <span className="mono">{formatEth(ev.amountWei)} ETH</span>
         <span className={`${styles.statusChip} ${status.tone}`}>{status.label}</span>
+        <button
+          type="button"
+          className={styles.historyToggle}
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {open ? "Hide" : "View"}
+        </button>
         {deadlinePassed && !ev.swept ? (
           <TxButton
             variant="btn--ghost"
@@ -414,6 +491,35 @@ function HistoryRowView({ ev, now, refetch }: { ev: HistoryRow; now: number; ref
           </TxButton>
         ) : null}
       </div>
+
+      {open ? (
+        <div className={styles.historyDetail}>
+          {detailStatus === "loading" ? (
+            <div className="skeleton" style={{ height: 96, borderRadius: 8 }} />
+          ) : detail && detail.words.length > 0 ? (
+            <>
+              <div className={styles.historyDetailStats}>
+                <span className="eyebrow">Per word</span>
+                <span className="mono">{formatEth(detail.sharePerWordWei)} ETH</span>
+                <span className={styles.historyDetailSep} aria-hidden="true">·</span>
+                <span className="eyebrow">Claims close</span>
+                <span className="mono">
+                  {deadlinePassed ? "closed" : timeRemaining(isoFromUnix(detail.deadline))}
+                </span>
+              </div>
+              <ClaimList
+                eventId={ev.eventId}
+                words={detail.words}
+                sharePerWordWei={detail.sharePerWordWei}
+                connected={connected}
+                refetch={refetch}
+              />
+            </>
+          ) : (
+            <p className={styles.boxNote}>Couldn&apos;t load the per-word details — try again.</p>
+          )}
+        </div>
+      ) : null}
     </li>
   );
 }

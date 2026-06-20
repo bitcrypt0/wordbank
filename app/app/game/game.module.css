@@ -393,3 +393,45 @@
   color: var(--ink-faint);
   font-size: var(--text-xs);
 }
+
+.historyToggle {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--paper-edge);
+  border-radius: 999px;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 0.2em 0.8em;
+  cursor: pointer;
+}
+
+.historyToggle:hover {
+  border-color: var(--ink);
+}
+
+/* Expanded per-word breakdown spans the full row width below the summary line. */
+.historyDetail {
+  flex-basis: 100%;
+  width: 100%;
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--paper-edge);
+  border-radius: 10px;
+  background: var(--paper-sink, rgba(0, 0, 0, 0.02));
+}
+
+.historyDetailStats {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.historyDetailSep {
+  color: var(--ink-faint);
+  margin-inline: var(--space-2);
+}
