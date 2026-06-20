@@ -32,6 +32,29 @@ function isRateLimit(err: unknown): boolean {
   );
 }
 
+/**
+ * An error that shrinking the window CANNOT fix — an access/capability limit, not
+ * a size limit. Splitting these would recurse all the way to single-block windows,
+ * exploding into hundreds of doomed sub-requests (the catastrophic slowdown the
+ * 1rpc 50-block cap once caused). Examples: keyless nodes that gate historical
+ * logs behind a paid token ("archive requests require a personal token"), or a
+ * node that doesn't support eth_getLogs at all. We bail the window immediately
+ * (record a gap) so the caller can fall back to a log-free path fast.
+ */
+function isUnsplittable(err: unknown): boolean {
+  const msg = String((err as { message?: string })?.message ?? "").toLowerCase();
+  const code = (err as { code?: unknown })?.code;
+  return (
+    msg.includes("archive") ||
+    msg.includes("personal token") ||
+    msg.includes("not supported") ||
+    msg.includes("unsupported") ||
+    msg.includes("method not found") ||
+    msg.includes("does not exist") ||
+    code === -32601
+  );
+}
+
 export interface ChunkedLogsParams<TEvent extends AbiEvent> {
   address: `0x${string}`;
   event: TEvent;
@@ -85,6 +108,13 @@ export async function getLogsChunked<TEvent extends AbiEvent>(
           delay = Math.min(delay * 2, 8000);
           attempt += 1;
           continue;
+        }
+        // Access/capability limit (e.g. archive token required) → splitting can't
+        // help. Record the whole window as a gap and bail immediately so the
+        // caller falls back fast instead of recursing into hundreds of failures.
+        if (isUnsplittable(err)) {
+          params.onGap?.(lower, upper, err);
+          return [];
         }
         // Too-large window (range/result cap) → split and recurse.
         if (upper > lower) {

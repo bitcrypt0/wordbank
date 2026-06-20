@@ -4,33 +4,34 @@ import type { PublicClient } from "viem";
 import { wordBankAbi } from "@/lib/contracts/abis";
 
 /**
- * Log-free owned-token discovery.
+ * Owned-token discovery — log-free, parallel `ownerOf` scan.
  *
- * WHY (bug fix 2026-06-16): owned NFTs were discovered by scanning `Transfer`
- * event logs (`eth_getLogs`). Free/keyless RPCs cripple `eth_getLogs` — drpc
- * rejects ranges >10k blocks, 1rpc limits to ~50 blocks, cloudflare is limited —
- * so depending on which RPC the read client landed on, discovery returned nothing
- * and the Dashboard/owned grids were empty even though the NFTs exist on-chain.
+ * The contract is NOT ERC721Enumerable: there is no `tokenOfOwnerByIndex` /
+ * `tokensOfOwner`, only `balanceOf` + `ownerOf`. And event-log discovery is out:
+ * EVERY keyless public RPC archive-gates `eth_getLogs` (only a keyed Alchemy/
+ * Infura endpoint serves historical logs), and a log scan's cost grows with chain
+ * age. So we scan the id space directly.
  *
- * THE FIX: WordBank tokenIds are sequential `1..totalMinted()` (mint-only
- * counter; never reused — see WordBank.sol). We enumerate the id space with
- * `ownerOf` in `multicall` batches (allowFailure — burned/unminted ids revert)
- * and keep the ids whose owner == the account. `ownerOf`/`balanceOf`/
- * `totalMinted` are plain `eth_call`/`multicall`, supported by EVERY RPC — NO
- * `eth_getLogs` — so this works on the wallet RPC and the public fallback alike.
+ * WHY PARALLEL (perf fix 2026-06-20): the supply is FIXED at 10,000 and fully
+ * minted, so the id space is a constant 1..totalMinted(). The previous version
+ * scanned it in 400-id `ownerOf` multicall batches SEQUENTIALLY with an early-stop
+ * at balanceOf — fast for low-id holders, but a high-id holder (ids ~9,800) forced
+ * ~25 serial round-trips before their tokens were even reached. We now fire the
+ * batches in bounded-concurrency WAVES: each wave's round-trip time is paid once,
+ * and a wave-level early-stop still exits as soon as the full balance is found.
+ * Worst case collapses from ~25 serial calls to ~4 waves; a low-id holder still
+ * finishes in the first wave. Constant work regardless of where the ids sit, on
+ * ANY RPC (ownerOf/multicall are plain eth_call, supported everywhere).
  *
- * EARLY-STOP: a holder owns exactly `balanceOf(account)` alive tokens, so we
- * stop scanning as soon as that many matches are found — at today's scale the
- * scan usually ends in the first batch or two.
- *
- * SCALE: ceiling is `totalMinted()` (the high-water mark, NOT `totalSupply()`
- * which falls on unbind and would skip ids above a burned token). At the 10,000
- * cap that's ~20–50 batches of 250–500 — well within RPC limits, and early-stop
- * usually exits far sooner.
+ * SCALE: ceiling is `totalMinted()` (mint high-water mark, never `totalSupply()`
+ * which falls on unbind and would skip ids above a burned token). 10,000 / 400 =
+ * 25 batches → at most ceil(25 / SCAN_CONCURRENCY) waves.
  */
 
-/** Multicall batch size for the ownerOf sweep — keeps each aggregate eth_call small. */
+/** Token ids per `ownerOf` multicall — keeps each aggregate eth_call small. */
 export const OWNER_ENUM_BATCH = 400;
+/** Multicall batches kept in flight per wave (bounded so a wave can't 429 an RPC). */
+export const SCAN_CONCURRENCY = 8;
 
 export interface OwnedEnumResult {
   /** Ascending tokenIds currently owned by the account. */
@@ -42,9 +43,9 @@ export interface OwnedEnumResult {
 }
 
 /**
- * Enumerate the tokenIds currently owned by `account`, with zero dependence on
- * `eth_getLogs`. Returns ascending ids, the expected count (balanceOf), and a
- * `partial` flag set if a batch read failed before all expected ids were found.
+ * Enumerate the tokenIds currently owned by `account`. Returns ascending ids, the
+ * expected count (balanceOf), and a `partial` flag set if a batch read failed
+ * before all expected ids were found.
  */
 export async function enumerateOwnedTokens(
   client: PublicClient,
@@ -65,8 +66,6 @@ export async function enumerateOwnedTokens(
     return { owned: [], expectedCount: 0, partial: false };
   }
 
-  // High-water mark of minted ids. Ids run 1..totalMinted(); unbound ids stay
-  // burned (ownerOf reverts) and are simply skipped by allowFailure.
   const totalMinted = Number(
     await client.readContract({
       address: bank,
@@ -75,38 +74,59 @@ export async function enumerateOwnedTokens(
     }),
   );
 
-  const owned: bigint[] = [];
-  let partial = false;
-
-  for (let start = 1; start <= totalMinted && owned.length < expectedCount; start += OWNER_ENUM_BATCH) {
+  // Precompute the id batches (1..totalMinted in OWNER_ENUM_BATCH-sized chunks).
+  const batches: bigint[][] = [];
+  for (let start = 1; start <= totalMinted; start += OWNER_ENUM_BATCH) {
     const ids: bigint[] = [];
     for (let id = start; id < start + OWNER_ENUM_BATCH && id <= totalMinted; id++) {
       ids.push(BigInt(id));
     }
-    const owners = await client.multicall({
-      allowFailure: true,
-      contracts: ids.map((tokenId) => ({
-        address: bank,
-        abi: wordBankAbi,
-        functionName: "ownerOf" as const,
-        args: [tokenId],
-      })),
-    });
-    ids.forEach((tokenId, i) => {
-      const r = owners[i];
-      // A revert here is expected for burned/unminted ids (allowFailure) — NOT a
-      // partial read. We only match successes whose owner == the account.
-      if (r?.status === "success" && String(r.result).toLowerCase() === want) {
-        owned.push(tokenId);
-      }
-    });
-    // Early-stop handled by the loop condition once owned.length >= expectedCount.
+    batches.push(ids);
   }
 
-  // If we walked the whole minted range and still didn't find balanceOf tokens,
-  // a multicall must have dropped some — surface it as partial rather than hide it.
+  // Resolve one batch → the ids in it currently owned by `account`. A revert is
+  // expected for burned/unminted ids (allowFailure) and is NOT a partial read; a
+  // thrown multicall (transport failure) is flagged so the caller can show it.
+  const resolveBatch = async (ids: bigint[]): Promise<{ hits: bigint[]; failed: boolean }> => {
+    try {
+      const owners = await client.multicall({
+        allowFailure: true,
+        contracts: ids.map((tokenId) => ({
+          address: bank,
+          abi: wordBankAbi,
+          functionName: "ownerOf" as const,
+          args: [tokenId],
+        })),
+      });
+      const hits = ids.filter(
+        (_, i) =>
+          owners[i]?.status === "success" &&
+          String(owners[i].result).toLowerCase() === want,
+      );
+      return { hits, failed: false };
+    } catch {
+      return { hits: [], failed: true };
+    }
+  };
+
+  const owned: bigint[] = [];
+  let partial = false;
+
+  // Fire batches in bounded-concurrency waves; stop launching waves once the full
+  // balance is accounted for (a low-id holder exits after the first wave).
+  for (let i = 0; i < batches.length && owned.length < expectedCount; i += SCAN_CONCURRENCY) {
+    const wave = batches.slice(i, i + SCAN_CONCURRENCY);
+    const results = await Promise.all(wave.map(resolveBatch));
+    for (const r of results) {
+      owned.push(...r.hits);
+      if (r.failed) partial = true;
+    }
+  }
+
+  // If we walked the whole minted range and still didn't find balanceOf tokens, a
+  // multicall dropped some — surface it as partial rather than hide it.
   if (owned.length < expectedCount) partial = true;
 
-  owned.sort((a, b) => (a < b ? -1 : 1));
+  owned.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   return { owned, expectedCount, partial };
 }
