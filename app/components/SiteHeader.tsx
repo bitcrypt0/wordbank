@@ -7,7 +7,6 @@ import { WalletButton } from "./WalletButton";
 import styles from "./SiteHeader.module.css";
 
 const NAV = [
-  { href: "/mint", label: "Mint" },
   { href: "/gallery", label: "Gallery" },
   { href: "/game", label: "Daily Game" },
   { href: "/rewards", label: "Dashboard" },

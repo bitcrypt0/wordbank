@@ -16,7 +16,6 @@ export function SiteFooter() {
         <nav aria-label="Footer" className={styles.cols}>
           <div>
             <p className={styles.colTitle}>Protocol</p>
-            <Link href="/mint">Mint</Link>
             <Link href="/gallery">Gallery</Link>
             <Link href="/game">Daily Game</Link>
             <Link href="/rewards">Dashboard</Link>

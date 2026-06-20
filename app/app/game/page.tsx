@@ -96,7 +96,7 @@ function PreStart({ g }: { g: GameState; refetch: () => void }) {
         />
       </div>
       <p className={styles.wiringNote}>
-        anyone can push it along on the <Link href="/mint">mint page</Link> ·
+        it advances permissionlessly — anyone can push the next step ·
         gate: <span className="mono">registrySynced()</span>
       </p>
     </section>

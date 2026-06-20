@@ -129,8 +129,19 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
-  // Static design mock origin — no rewrites, no server features beyond headers.
   outputFileTracingRoot: import.meta.dirname,
+  // The collection is fully minted out + sealed, so the mint page is retired.
+  // Permanently redirect any old links/bookmarks/marketing URLs to the gallery
+  // (308) instead of 404ing them.
+  async redirects() {
+    return [
+      {
+        source: "/mint",
+        destination: "/gallery",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
