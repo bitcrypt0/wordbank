@@ -186,7 +186,17 @@ export function getPublicClient() {
       transport: buildTransport(),
       // Request coalescing: collapse the per-render burst of readContract calls
       // into a few Multicall3 calls, so read-heavy pages don't 429 free RPCs.
-      batch: { multicall: true },
+      //
+      // CRITICAL (perf fix 2026-06-20): pass an OBJECT with an explicit batchSize.
+      // `multicall: true` (a boolean) makes viem fall back to its 1024-BYTE default
+      // chunk size, which shreds a single 400-call multicall into ~15 separate
+      // eth_calls (measured). Every one is its own round-trip — and through the
+      // /api/rpc → Alchemy proxy hop that turned the Dashboard's ownerOf sweep +
+      // per-token reads into dozens of 1-3s requests. A large byte budget lets a
+      // whole 400-id batch ride in ONE aggregate3 call (~15x fewer requests).
+      // `wait` is the coalescing window for separate readContract calls fired in
+      // the same tick. batchSize is in BYTES of calldata, not number of calls.
+      batch: { multicall: { batchSize: 102_400, wait: 16 } },
     });
   }
   return _publicClient;

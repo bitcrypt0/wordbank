@@ -5,11 +5,12 @@ import {
   wordBankAbi,
   rewardsDistributorAbi,
   feeHookAbi,
+  bountyEngineAbi,
 } from "@/lib/contracts/abis";
 import { isDeployed, requireAddress } from "@/lib/contracts/addresses";
 import { NotDeployedError, useChainData } from "@/lib/hooks/useChainData";
 import { getLogsChunked } from "@/lib/events/logs";
-import { claimableForToken, getRecentSentences } from "@/lib/reads/bounties";
+import { getRecentSentences } from "@/lib/reads/bounties";
 import { enumerateOwnedTokens } from "@/lib/reads/ownerEnum";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 
@@ -137,15 +138,36 @@ export function useRewardsData() {
       let bountyScanComplete = true;
       if (isDeployed("bountyEngine")) {
         try {
+          const bountyEngine = requireAddress("bountyEngine");
           const recent = await getRecentSentences(client);
-          // Only tokens that appeared in a recent sentence can be claimable.
-          const inASentence = new Set<number>();
-          for (const e of recent) for (const id of e.tokenIds) inASentence.add(id);
-          const toCheck = owned.map(Number).filter((id) => inASentence.has(id));
-          for (const id of toCheck) {
-            const shares = await claimableForToken(client, id, recent);
-            const total = shares.reduce((acc, s) => acc + s.sharePerWordWei, 0n);
-            if (total > 0n) bountyShareByToken.set(id, total);
+          // Flatten EVERY (event, owned-token) claimable check into ONE multicall
+          // rather than a sequential `claimableForToken` per token (perf fix
+          // 2026-06-20: the per-token loop was N serial RPC round-trips on the
+          // Dashboard — through the proxy that meant N slow hops; now one
+          // aggregate call). A token can hold a claimable share in more than one
+          // recent sentence, so we sum across all of its hits.
+          const ownedSet = new Set(owned.map(Number));
+          const pairs: { eventId: number; tokenId: number; shareWei: bigint }[] = [];
+          for (const e of recent) {
+            for (const id of e.tokenIds) {
+              if (ownedSet.has(id)) pairs.push({ eventId: e.eventId, tokenId: id, shareWei: e.sharePerWordWei });
+            }
+          }
+          if (pairs.length > 0) {
+            const checks = await client.multicall({
+              allowFailure: true,
+              contracts: pairs.map((p) => ({
+                address: bountyEngine,
+                abi: bountyEngineAbi,
+                functionName: "isClaimable" as const,
+                args: [BigInt(p.eventId), BigInt(p.tokenId)],
+              })),
+            });
+            pairs.forEach((p, i) => {
+              if (checks[i]?.status === "success" && checks[i].result === true) {
+                bountyShareByToken.set(p.tokenId, (bountyShareByToken.get(p.tokenId) ?? 0n) + p.shareWei);
+              }
+            });
           }
         } catch {
           bountyScanComplete = false;
