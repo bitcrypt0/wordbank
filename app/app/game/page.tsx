@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   useGameState,
@@ -103,6 +103,36 @@ function PreStart({ g }: { g: GameState; refetch: () => void }) {
   );
 }
 
+/* ─────────────── live countdown to the next commit window ─────────────── */
+/** Ticks once a second to a fixed unix target (lastEventTimestamp + cycleLength).
+ *  Fires onElapsed once at zero so the page refetches and the panel flips to the
+ *  open-commit state. Chain timestamps track wall-clock UTC, so Date.now() is a
+ *  fine tick source (the commit button itself is gated on the chain's own
+ *  blockTimestamp via cycleReady, so a small client-clock skew is cosmetic). */
+function CommitCountdown({ targetUnix, onElapsed }: { targetUnix: number; onElapsed?: () => void }) {
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const left = Math.max(0, targetUnix - now);
+  const firedRef = useRef(false);
+  useEffect(() => {
+    if (left === 0 && !firedRef.current) {
+      firedRef.current = true;
+      onElapsed?.();
+    }
+  }, [left, onElapsed]);
+
+  if (left === 0) return <>available now</>;
+  const h = Math.floor(left / 3600);
+  const m = Math.floor((left % 3600) / 60);
+  const s = left % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return <>{h > 0 ? `${h}h ${pad(m)}m ${pad(s)}s` : `${m}m ${pad(s)}s`}</>;
+}
+
 /* ─────────────────────────── idle ─────────────────────────── */
 function Idle({ g, account, refetch }: { g: GameState; account: string | null; refetch: () => void }) {
   // A tier is affordable only if the treasury covers it PLUS its 2% reveal reward
@@ -114,6 +144,12 @@ function Idle({ g, account, refetch }: { g: GameState; account: string | null; r
   const treasuryOk = g.tiersWei.length > 0 && g.freeTreasuryWei >= minCostWei;
   const cycleReady = g.blockTimestamp >= g.lastEventTimestamp + g.cycleLength;
   const canCommit = g.holderBalance >= 1 && cycleReady && treasuryOk;
+  // The next draw can be committed at lastEventTimestamp + cycleLength (the
+  // contract's CycleActive gate). Only show a countdown while that window is
+  // still in the future and a draw has actually run before (lastEventTimestamp 0
+  // = never run → commit is open immediately, nothing to count down).
+  const nextCommitAt = g.lastEventTimestamp + g.cycleLength;
+  const cycleActive = g.lastEventTimestamp > 0 && !cycleReady;
   const hint = !account
     ? undefined
     : g.holderBalance < 1
@@ -134,6 +170,14 @@ function Idle({ g, account, refetch }: { g: GameState; account: string | null; r
           bond — refunded the moment the sentence reveals. One draw per
           24 hours, for the whole collection.
         </p>
+        {cycleActive ? (
+          <div className={styles.countdownBox}>
+            <span className="eyebrow">Next draw opens in</span>
+            <span className={`mono ${styles.countdownBig}`}>
+              <CommitCountdown targetUnix={nextCommitAt} onElapsed={refetch} />
+            </span>
+          </div>
+        ) : null}
         <TxButton
           build={() => ({ address: be(), abi: bountyEngineAbi, functionName: "commit", value: g.bondWei })}
           disabled={!canCommit}
