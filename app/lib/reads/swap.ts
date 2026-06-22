@@ -1,7 +1,7 @@
 "use client";
 
 import type { PublicClient } from "viem";
-import { wordTokenAbi, feeHookAbi } from "@/lib/contracts/abis";
+import { wordTokenV2Abi, feeHookV2Abi } from "@/lib/contracts/abis";
 import { permit2Abi } from "@/lib/contracts/uniswapAbis";
 import { isDeployed, requireAddress, UNISWAP } from "@/lib/contracts/addresses";
 import { NotDeployedError, useChainData } from "@/lib/hooks/useChainData";
@@ -28,16 +28,16 @@ export function useSwapData() {
 
   return useChainData<SwapData>(
     async (client: PublicClient) => {
-      if (!isDeployed("wordToken") || !isDeployed("feeHook")) throw new NotDeployedError();
-      const word = requireAddress("wordToken");
-      const hook = requireAddress("feeHook");
+      if (!isDeployed("wordTokenV2") || !isDeployed("feeHookV2")) throw new NotDeployedError();
+      const word = requireAddress("wordTokenV2");
+      const hook = requireAddress("feeHookV2");
 
       const gate = (await client.multicall({
         allowFailure: false,
         contracts: [
-          { address: hook, abi: feeHookAbi, functionName: "tradingEnabledAt" },
-          { address: hook, abi: feeHookAbi, functionName: "guardActive" },
-          { address: hook, abi: feeHookAbi, functionName: "BUY_CAP" },
+          { address: hook, abi: feeHookV2Abi, functionName: "tradingEnabledAt" },
+          { address: hook, abi: feeHookV2Abi, functionName: "guardActive" },
+          { address: hook, abi: feeHookV2Abi, functionName: "BUY_CAP" },
         ],
       })) as [bigint, boolean, bigint];
 
@@ -53,8 +53,8 @@ export function useSwapData() {
           client.multicall({
             allowFailure: false,
             contracts: [
-              { address: word, abi: wordTokenAbi, functionName: "balanceOf", args: [account] },
-              { address: word, abi: wordTokenAbi, functionName: "allowance", args: [account, UNISWAP.permit2] },
+              { address: word, abi: wordTokenV2Abi, functionName: "balanceOf", args: [account] },
+              { address: word, abi: wordTokenV2Abi, functionName: "allowance", args: [account, UNISWAP.permit2] },
             ],
           }),
           client.readContract({

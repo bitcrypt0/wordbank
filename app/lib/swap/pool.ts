@@ -20,10 +20,11 @@ export interface PoolKey {
   hooks: Address;
 }
 
-/** Build the WORD/ETH PoolKey, or null if WORD/FeeHook aren't deployed yet. */
+/** Build the WORD/ETH PoolKey, or null if WORD/FeeHook aren't deployed yet.
+ *  Targets the relaunch pool: WordTokenV2 + FeeHookV2 (same fee/tickSpacing). */
 export function buildPoolKey(): PoolKey | null {
-  const word = OUR_ADDRESSES.wordToken;
-  const hook = OUR_ADDRESSES.feeHook;
+  const word = OUR_ADDRESSES.wordTokenV2;
+  const hook = OUR_ADDRESSES.feeHookV2;
   if (!word || !hook) return null;
   return {
     currency0: ETH_ADDRESS,

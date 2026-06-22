@@ -13,6 +13,10 @@ import {
   feeHookAbi,
   lpLockerAbi,
   royaltySplitterAbi,
+  wordTokenV2Abi,
+  wordStakingAbi,
+  wordMigratorAbi,
+  feeHookV2Abi,
 } from "./abis";
 import { OUR_ADDRESSES, type Address, type ContractKey } from "./addresses";
 
@@ -27,6 +31,10 @@ export const ABIS = {
   feeHook: feeHookAbi,
   lpLocker: lpLockerAbi,
   royaltySplitter: royaltySplitterAbi,
+  wordTokenV2: wordTokenV2Abi,
+  wordStaking: wordStakingAbi,
+  wordMigrator: wordMigratorAbi,
+  feeHookV2: feeHookV2Abi,
 } as const;
 
 export type ContractConfig = {

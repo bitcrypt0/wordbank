@@ -9,3 +9,7 @@ export { burnEngineAbi } from "./BurnEngine";
 export { feeHookAbi } from "./FeeHook";
 export { lpLockerAbi } from "./LPLocker";
 export { royaltySplitterAbi } from "./RoyaltySplitter";
+export { wordTokenV2Abi } from "./WordTokenV2";
+export { wordStakingAbi } from "./WordStaking";
+export { wordMigratorAbi } from "./WordMigrator";
+export { feeHookV2Abi } from "./FeeHookV2";

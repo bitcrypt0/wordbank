@@ -23,7 +23,12 @@ export type ContractKey =
   | "burnEngine"
   | "feeHook"
   | "lpLocker"
-  | "royaltySplitter";
+  | "royaltySplitter"
+  // ── WORD v2 relaunch ──
+  | "wordTokenV2"
+  | "wordStaking"
+  | "wordMigrator"
+  | "feeHookV2";
 
 export type Address = `0x${string}`;
 
@@ -42,6 +47,10 @@ export const OUR_ADDRESSES: Record<ContractKey, Address | null> = {
   feeHook: norm(deployed.contracts.feeHook),
   lpLocker: norm(deployed.contracts.lpLocker),
   royaltySplitter: norm(deployed.contracts.royaltySplitter),
+  wordTokenV2: norm(deployed.contracts.wordTokenV2),
+  wordStaking: norm(deployed.contracts.wordStaking),
+  wordMigrator: norm(deployed.contracts.wordMigrator),
+  feeHookV2: norm(deployed.contracts.feeHookV2),
 };
 
 /** WORD/ETH V4 pool launch params (currency0 = ETH, currency1 = WORD). */

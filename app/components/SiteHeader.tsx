@@ -11,6 +11,8 @@ const NAV = [
   { href: "/game", label: "Daily Game" },
   { href: "/rewards", label: "Dashboard" },
   { href: "/token", label: "WORD" },
+  { href: "/staking", label: "Stake" },
+  { href: "/migrate", label: "Migrate" },
   { href: "/docs", label: "Docs" },
 ] as const;
 

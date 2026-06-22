@@ -20,6 +20,8 @@ export function SiteFooter() {
             <Link href="/game">Daily Game</Link>
             <Link href="/rewards">Dashboard</Link>
             <Link href="/token">WORD token</Link>
+            <Link href="/staking">Stake WORD</Link>
+            <Link href="/migrate">Migrate</Link>
           </div>
           <div>
             <p className={styles.colTitle}>Read</p>

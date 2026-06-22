@@ -3,7 +3,7 @@ import { V4Planner, Actions } from "@uniswap/v4-sdk";
 import { RoutePlanner, CommandType } from "@uniswap/universal-router-sdk";
 import { UNISWAP, requireAddress } from "@/lib/contracts/addresses";
 import { universalRouterAbi, permit2Abi } from "@/lib/contracts/uniswapAbis";
-import { wordTokenAbi } from "@/lib/contracts/abis";
+import { wordTokenV2Abi } from "@/lib/contracts/abis";
 import type { WriteConfig } from "@/lib/hooks/useWrite";
 import { buildPoolKey, currenciesFor, isZeroForOne, type Direction } from "./pool";
 
@@ -57,8 +57,8 @@ export function buildSwapConfig(
 /** One-time ERC-20 approval: let Permit2 move the caller's WORD. */
 export function buildErc20ApproveConfig(): WriteConfig {
   return {
-    address: requireAddress("wordToken"),
-    abi: wordTokenAbi,
+    address: requireAddress("wordTokenV2"),
+    abi: wordTokenV2Abi,
     functionName: "approve",
     args: [UNISWAP.permit2, maxUint160],
   };
@@ -72,6 +72,6 @@ export function buildPermit2ApproveConfig(amountWei: bigint): WriteConfig {
     address: UNISWAP.permit2,
     abi: permit2Abi,
     functionName: "approve",
-    args: [requireAddress("wordToken"), UNISWAP.universalRouter, amount, expiration],
+    args: [requireAddress("wordTokenV2"), UNISWAP.universalRouter, amount, expiration],
   };
 }

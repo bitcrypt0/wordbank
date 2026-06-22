@@ -15,6 +15,10 @@
     "add-liquidity": "hardhat run scripts/06-add-liquidity.ts",
     "remove-liquidity": "hardhat run scripts/07-remove-liquidity.ts",
     "seal-and-renounce": "hardhat run scripts/03-seal-and-renounce.ts",
+    "snapshot:migration": "hardhat run scripts/snapshot-merkle.ts",
+    "v2:deploy": "hardhat run scripts/v2-01-deploy.ts",
+    "v2:seed-and-launch": "hardhat run scripts/v2-02-seed-and-launch.ts",
+    "v2:enable-trading": "hardhat run scripts/v2-03-enable-trading.ts",
     "verify-commands": "ts-node scripts/verify-commands.ts --print",
     "verify:mainnet": "ts-node scripts/verify-commands.ts --network mainnet",
     "verify:sepolia": "ts-node scripts/verify-commands.ts --network sepolia",
@@ -24,6 +28,7 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "@openzeppelin/merkle-tree": "^1.0.7",
     "@types/node": "^22.10.0",
     "dotenv": "^16.4.7",
     "ethers": "^6.13.4",

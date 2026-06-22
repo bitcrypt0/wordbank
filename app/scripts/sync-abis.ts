@@ -40,6 +40,11 @@ const MANIFEST: Entry[] = [
   { file: "FeeHook.sol", name: "FeeHook", exportName: "feeHookAbi" },
   { file: "LPLocker.sol", name: "LPLocker", exportName: "lpLockerAbi" },
   { file: "RoyaltySplitter.sol", name: "RoyaltySplitter", exportName: "royaltySplitterAbi" },
+  // ── WORD v2 relaunch ──
+  { file: "WordTokenV2.sol", name: "WordTokenV2", exportName: "wordTokenV2Abi" },
+  { file: "WordStaking.sol", name: "WordStaking", exportName: "wordStakingAbi" },
+  { file: "WordMigrator.sol", name: "WordMigrator", exportName: "wordMigratorAbi" },
+  { file: "FeeHookV2.sol", name: "FeeHookV2", exportName: "feeHookV2Abi" },
 ];
 
 type AbiItem = Record<string, unknown>;

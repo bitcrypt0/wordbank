@@ -68,7 +68,8 @@ function wantsPrint(): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
-/** Builds the nine verification jobs. The command order, addresses and constructor-args here are
+/** Builds the verification jobs — the nine v1 contracts, plus the four WORD v2 relaunch
+ *  contracts once they're deployed. The command order, addresses and constructor-args here are
  *  the FROZEN, deploy-matching logic — do not change them (only the execution wrapper is new). */
 function buildJobs(): VerifyJob[] {
   const a = loadAddresses(network.name);
@@ -78,7 +79,7 @@ function buildJobs(): VerifyJob[] {
   const enc = (types: string[], values: unknown[]) => coder.encode(types, values).slice(2);
   const job = (label: string, ...rest: string[]): VerifyJob => ({label, args: [...base, ...rest]});
 
-  return [
+  const jobs: VerifyJob[] = [
     // WordToken FIRST (scanner hygiene). Deployed by WordBank's constructor; same compiler input.
     job("WordToken", a.wordToken, "src/WordToken.sol:WordToken", "--constructor-args", enc(["address"], [a.admin])),
     job("WordBank", a.wordBank, "src/WordBank.sol:WordBank", "--constructor-args", enc(["address"], [a.admin])),
@@ -90,6 +91,32 @@ function buildJobs(): VerifyJob[] {
     job("LPLocker", a.lpLocker, "src/LPLocker.sol:LPLocker", "--constructor-args", enc(["address", "address"], [a.positionManager, a.admin])),
     job("RoyaltySplitter", a.royaltySplitter, "src/RoyaltySplitter.sol:RoyaltySplitter", "--constructor-args", enc(["address", "address", "address", "address"], [a.burnEngine, a.bountyEngine, a.admin, a.weth])),
   ];
+
+  // WORD v2 relaunch contracts — appended only once they've been deployed (v2-01-deploy.ts), so
+  // running this against a pre-v2 deployment verifies just the v1 set. Constructor args mirror
+  // v2-01-deploy.ts exactly (recipient + merkle root are recorded there for this purpose).
+  if (a.wordTokenV2) {
+    jobs.push(
+      job("WordTokenV2", a.wordTokenV2, "src/WordTokenV2.sol:WordTokenV2", "--constructor-args", enc(["address"], [a.wordTokenV2Recipient ?? a.admin])),
+    );
+  }
+  if (a.wordStaking) {
+    jobs.push(
+      job("WordStaking", a.wordStaking, "src/WordStaking.sol:WordStaking", "--constructor-args", enc(["address"], [a.wordTokenV2])),
+    );
+  }
+  if (a.wordMigrator) {
+    jobs.push(
+      job("WordMigrator", a.wordMigrator, "src/WordMigrator.sol:WordMigrator", "--constructor-args", enc(["address", "address", "bytes32"], [a.wordToken, a.wordTokenV2, a.v2MerkleRoot])),
+    );
+  }
+  if (a.feeHookV2) {
+    jobs.push(
+      job("FeeHookV2", a.feeHookV2, "src/FeeHookV2.sol:FeeHookV2", "--constructor-args", a.feeHookV2ConstructorArgs.slice(2)),
+    );
+  }
+
+  return jobs;
 }
 
 /** The exact one-line `forge ...` command for a job — used by --print (byte-identical to the

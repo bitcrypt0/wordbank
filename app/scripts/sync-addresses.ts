@@ -46,6 +46,11 @@ const CONTRACT_KEYS: Record<string, string> = {
   feeHook: "feeHook",
   lpLocker: "lpLocker",
   royaltySplitter: "royaltySplitter",
+  // ── WORD v2 relaunch (null until v2-01-deploy.ts records them) ──
+  wordTokenV2: "wordTokenV2",
+  wordStaking: "wordStaking",
+  wordMigrator: "wordMigrator",
+  feeHookV2: "feeHookV2",
 };
 
 function main(): void {
@@ -82,7 +87,8 @@ function main(): void {
   };
   fs.writeFileSync(OUT_FILE, JSON.stringify(out, null, 2) + "\n", "utf8");
   const filled = Object.values(contracts).filter(Boolean).length;
-  console.log(`sync-addresses: ${network} → deployed.json (${filled}/9 contracts set)`);
+  const total = Object.keys(CONTRACT_KEYS).length;
+  console.log(`sync-addresses: ${network} → deployed.json (${filled}/${total} contracts set)`);
 }
 
 main();
