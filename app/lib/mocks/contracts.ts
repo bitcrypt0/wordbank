@@ -27,15 +27,22 @@ interface ContractDef {
 }
 
 const DEFS: ContractDef[] = [
-  { key: "wordToken", name: "WordToken", description: "The WORD ERC-20. 11M cap, sealed at launch, burnable down to the live backing floor." },
-  { key: "wordBank", name: "WordBank", description: "The 10,000 NFTs, the locked backing, the word registry, and the unbind (cash-out) path." },
+  // ── Active: the relaunch ──
+  { key: "wordTokenV2", name: "WordTokenV2 (WORD)", description: "The WORD ERC-20 — fixed 1,000,000 supply, no minting, no bonding." },
+  { key: "wordStaking", name: "WordStaking", description: "Stake WORD to earn 50% of the swap fee, paid in ETH." },
+  { key: "wordMigrator", name: "WordMigrator", description: "One-way migration: snapshot holders burn old WORD to claim the new token." },
+  { key: "feeHookV2", name: "FeeHookV2", description: "Skims the 1% trading fee and routes the fixed 25 / 25 / 50 split." },
+  // ── Reused from the original launch ──
+  { key: "wordBank", name: "WordBank", description: "The 10,000 word NFTs, the registry, and the unbind path." },
   { key: "renderer", name: "Renderer", description: "Assembles each NFT's artwork onchain." },
-  { key: "rewardsDistributor", name: "RewardsDistributor", description: "Splits the 50% holder-rewards slice equally across living NFTs." },
-  { key: "bountyEngine", name: "BountyEngine", description: "The daily game: templates, commit-reveal draw, prizes, claims." },
-  { key: "burnEngine", name: "BurnEngine", description: "Buy-and-burn excess WORD down to the live backing floor, for the protocol's life." },
-  { key: "feeHook", name: "FeeHook", description: "Skims the 1% trading fee and routes the three-way split." },
-  { key: "lpLocker", name: "LPLocker", description: "Time-locks the initial liquidity." },
-  { key: "royaltySplitter", name: "RoyaltySplitter", description: "Receives marketplace royalties and forwards them in immutable equal thirds — burn / bounty / team." },
+  { key: "rewardsDistributor", name: "RewardsDistributor", description: "Splits the 25% NFT-holder rewards slice equally across living NFTs." },
+  { key: "bountyEngine", name: "BountyEngine", description: "The daily game: commit-reveal draw, prizes, claims (funded by 25% of the fee)." },
+  { key: "royaltySplitter", name: "RoyaltySplitter", description: "Receives marketplace NFT royalties and forwards them in immutable equal thirds." },
+  // ── Deprecated original WORD economy (still on-chain, no longer used) ──
+  { key: "wordToken", name: "WordToken (deprecated)", description: "The original WORD ERC-20, replaced by WordTokenV2. Convert via the migrator." },
+  { key: "feeHook", name: "FeeHook (deprecated)", description: "The original pool's fee hook, replaced by FeeHookV2." },
+  { key: "burnEngine", name: "BurnEngine (deprecated)", description: "The original buy-and-burn, retired in the relaunch." },
+  { key: "lpLocker", name: "LPLocker (deprecated)", description: "The original liquidity lock; the relaunch pool is locked on UNCX." },
 ];
 
 export const CONTRACTS: ContractInfo[] = DEFS.map((d) => ({

@@ -26,8 +26,8 @@ export function SiteFooter() {
           <div>
             <p className={styles.colTitle}>Read</p>
             <Link href="/docs#what">How it works</Link>
+            <Link href="/docs#staking">Earn by staking</Link>
             <Link href="/docs#limits">Honest limits</Link>
-            <Link href="/docs#vault">The 91% question</Link>
             <Link href="/docs#contracts">The contracts</Link>
           </div>
         </nav>
