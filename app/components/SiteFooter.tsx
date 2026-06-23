@@ -30,6 +30,11 @@ export function SiteFooter() {
             <Link href="/docs#limits">Honest limits</Link>
             <Link href="/docs#contracts">The contracts</Link>
           </div>
+          <div>
+            <p className={styles.colTitle}>Community</p>
+            <a href="https://x.com/wordbankgame" target="_blank" rel="noopener noreferrer">X (Twitter)</a>
+            <a href="https://t.me/wordbankgame" target="_blank" rel="noopener noreferrer">Telegram</a>
+          </div>
         </nav>
       </div>
       <div className={`container ${styles.legal}`}>
